@@ -1,0 +1,360 @@
+# Naira Budget — Cursor Rules (.cursorrules)
+
+## Project Overview
+Naira Budget is a Nigerian personal finance web app built with Next.js 14 (App Router), TypeScript, Prisma, Supabase, and Tailwind CSS. It is a no-real-money budgeting and investment tracking tool for Nigerian professionals. Deployed on Netlify. Mobile-responsive web first, React Native Phase 2.
+
+---
+
+## Core Principles
+
+1. **TypeScript strict mode always.** Never use `any`. Define types in `types/index.ts` or co-locate with the feature.
+2. **Server components by default.** Only add `"use client"` when you need interactivity, browser APIs, or React hooks.
+3. **Prisma for all DB operations.** Never write raw SQL. All queries go through the Prisma client in `lib/prisma.ts`.
+4. **Supabase Auth only for authentication.** Do not use Supabase client for database reads/writes — use Prisma for that.
+5. **No `any` type.** Ever. If you don't know the type, define it explicitly or use `unknown` with a type guard.
+6. **Zod for all validation.** Every API route input and form must be validated with a Zod schema.
+7. **React Hook Form for all forms.** Never use uncontrolled inputs or manual form state.
+
+---
+
+## Tech Stack Rules
+
+### Next.js 14 App Router
+- Use the App Router (`app/` directory) — never Pages Router
+- Route groups: `(auth)` for unauthenticated routes, `(app)` for authenticated routes
+- Use `loading.tsx` for every page that fetches data
+- Use `error.tsx` for every page with server data fetching
+- Use `not-found.tsx` for 404 handling
+- Layouts are in `layout.tsx` — keep them lean, no business logic
+- API routes use `route.ts` with named exports: `GET`, `POST`, `PUT`, `DELETE`
+- Never use `getServerSideProps` or `getStaticProps` — those are Pages Router
+
+### TypeScript
+- `strict: true` in tsconfig — always
+- Prefer `interface` over `type` for object shapes
+- Use `type` for unions, intersections, and utility types
+- Export types from `types/index.ts` for shared types
+- Use Prisma-generated types (e.g. `Prisma.UserGetPayload`) where applicable
+- Always type function return values explicitly for API handlers
+
+### Prisma
+- Client singleton in `lib/prisma.ts`:
+  ```ts
+  import { PrismaClient } from '@prisma/client'
+  const globalForPrisma = globalThis as unknown as { prisma: PrismaClient }
+  export const prisma = globalForPrisma.prisma ?? new PrismaClient()
+  if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
+  ```
+- Always use `include` or `select` — never fetch more data than needed
+- Use transactions (`prisma.$transaction`) for multi-step operations
+- Run migrations with `pnpm prisma migrate dev` in development
+- Never modify the database directly — always through migrations
+
+### Supabase
+- Browser client: `lib/supabase/client.ts` (createBrowserClient)
+- Server client: `lib/supabase/server.ts` (createServerClient with cookies)
+- Auth is handled by Supabase — extract user from session in server components
+- Row Level Security (RLS) must be enabled on all Supabase tables
+- Never expose `SUPABASE_SERVICE_ROLE_KEY` to the client
+
+### Tailwind CSS
+- Use Tailwind utility classes — never write custom CSS files except for globals
+- Follow mobile-first responsive design: base styles are mobile, `md:` for tablet, `lg:` for desktop
+- Color palette (must match design system):
+  - Primary green: `#0F6E56` → use as `text-[#0F6E56]` or define in tailwind config
+  - Budget blue: `#378ADD`
+  - Misc purple: `#7F77DD`
+  - Warning amber: `#BA7517`
+  - Danger red: `#A32D2D`
+- Minimum touch target: `min-h-[44px] min-w-[44px]` on all interactive elements
+- Use `gap-*` and `space-*` for spacing — never use `margin` hacks
+
+### shadcn/ui
+- Install components with: `pnpm dlx shadcn-ui@latest add [component]`
+- Only install what you need — do not install all components upfront
+- Customise in `components/ui/` — never edit the shadcn source directly
+- Use Sheet for bottom sheets on mobile, Dialog for desktop modals
+- Use Skeleton for loading states — always
+
+---
+
+## File & Component Rules
+
+### Naming conventions
+- **Files:** `kebab-case.tsx` for components, `camelCase.ts` for utilities
+- **Components:** `PascalCase` — named exports preferred over default exports for components
+- **Hooks:** `use` prefix, e.g. `useExpenses.ts`
+- **API routes:** `route.ts` in the correct `app/api/` folder
+- **Types:** `PascalCase` for interfaces and types
+
+### Component structure (in order)
+```tsx
+// 1. Imports (external first, internal second)
+// 2. Type definitions (interfaces for this component)
+// 3. Constants (if any)
+// 4. Component function
+// 5. Helper functions (if small and only used here)
+// 6. Export
+```
+
+### Server vs Client components
+- **Server (default):** Data fetching, DB calls, no interactivity
+- **Client (`"use client"`):** Forms, onClick handlers, useState, useEffect, browser APIs
+- Keep client components as small/leaf as possible
+- Pass data from server components down as props to client components
+- Never do data fetching inside a client component — use server actions or API routes
+
+### API route structure
+```ts
+import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
+import { prisma } from '@/lib/prisma'
+import { createServerClient } from '@/lib/supabase/server'
+
+export async function POST(req: NextRequest) {
+  // 1. Auth check
+  const supabase = createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  // 2. Parse + validate body
+  const body = await req.json()
+  const schema = z.object({ ... })
+  const parsed = schema.safeParse(body)
+  if (!parsed.success) return NextResponse.json({ error: parsed.error }, { status: 400 })
+
+  // 3. DB operation
+  const result = await prisma.something.create({ data: { ...parsed.data, userId: user.id } })
+
+  // 4. Return
+  return NextResponse.json(result, { status: 201 })
+}
+```
+
+---
+
+## Nigerian Finance Rules (Domain Logic)
+
+### Currency formatting
+Always use the helper in `lib/utils/currency.ts`:
+```ts
+export function formatNaira(amount: number): string {
+  return new Intl.NumberFormat('en-NG', {
+    style: 'currency',
+    currency: 'NGN',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount)
+}
+// Output: ₦800,000
+```
+Never hardcode "₦" + number formatting inline — always use `formatNaira()`.
+
+### T-bill return calculation
+```ts
+// lib/utils/tbills.ts
+export function calculateTBillReturn(
+  principal: number,
+  annualRate: number,  // e.g. 0.21 for 21%
+  days: number         // e.g. 91
+): number {
+  return principal * annualRate * (days / 365)
+}
+
+export function daysUntilMaturity(maturityDate: Date): number {
+  return Math.max(0, Math.ceil((maturityDate.getTime() - Date.now()) / 86400000))
+}
+
+export function tbillProgressPercent(startDate: Date, maturityDate: Date): number {
+  const total = maturityDate.getTime() - startDate.getTime()
+  const elapsed = Date.now() - startDate.getTime()
+  return Math.min(100, Math.round((elapsed / total) * 100))
+}
+```
+
+### Rent jar logic
+```ts
+// Monthly target = annual rent / 12
+// On track = savedAmount >= (monthsElapsed * monthlyTarget)
+// monthsElapsed = months between jar creation date and today
+```
+
+### Budget balance validation
+The total of all bucket allocations MUST equal total income. This must be enforced:
+- Client-side: real-time as user adjusts amounts
+- Server-side: validated in API route before saving
+- Show remaining balance prominently — green if 0, red if non-zero
+
+---
+
+## State Management
+
+### Zustand store (`store/useAppStore.ts`)
+Only put truly global UI state in Zustand:
+- `selectedMonth: string` — which month is being viewed
+- `activeGroceryListId: string | null`
+- `isOnboarded: boolean`
+
+Do NOT put server data in Zustand. Use React Query or SWR for server state if needed, or rely on Next.js server components and revalidation.
+
+### Data fetching strategy
+- **Server components:** Use Prisma directly for initial page loads
+- **Client-side mutations:** Use `fetch` to hit API routes + `router.refresh()` to revalidate
+- **Optimistic updates:** Use `useOptimistic` for expense logging and grocery ticking (fast interactions)
+
+---
+
+## UI/UX Rules
+
+### Mobile-first responsive patterns
+```tsx
+// Bottom sheet on mobile, Dialog on desktop
+// Use useMediaQuery or CSS to conditionally render
+<Sheet open={open}>          // mobile
+  <SheetContent side="bottom">
+<Dialog open={open}>         // desktop
+```
+
+### Loading states
+Every data-dependent component must have a skeleton:
+```tsx
+// In loading.tsx or as Suspense fallback
+<Skeleton className="h-20 w-full rounded-lg" />
+```
+
+### Forms
+- All amounts use `inputMode="decimal"` for numeric keyboard on mobile
+- Amount inputs should format with commas on blur, accept raw numbers on focus
+- Dates default to today — use Nigerian format DD/MM/YYYY in display, ISO in storage
+
+### Grocery item interaction
+- Tap checkbox → optimistic tick (immediate UI response, sync in background)
+- Tap price field → inline input opens (no modal)
+- The "fill price" UX must feel instant — use optimistic updates
+
+### Error handling
+- All API errors return `{ error: string }` with appropriate HTTP status
+- Client shows toast (shadcn/ui Sonner) for success and error actions
+- Never show raw error messages — map to user-friendly strings
+
+---
+
+## Netlify Deployment Rules
+
+### netlify.toml (create this file)
+```toml
+[build]
+  command = "pnpm prisma generate && pnpm build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "20"
+  PNPM_VERSION = "8"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+```
+
+### Environment variables
+Set these in Netlify dashboard under Site Settings → Environment Variables:
+- `DATABASE_URL` — Supabase pooled URL (port 6543)
+- `DIRECT_URL` — Supabase direct URL (port 5432)
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `NEXT_PUBLIC_APP_URL`
+
+### Namecheap → Netlify domain setup
+1. In Netlify: Site Settings → Domain management → Add custom domain
+2. In Namecheap: Advanced DNS → Add CNAME record:
+   - Host: `www` → Value: `[your-netlify-site].netlify.app`
+   - Add ALIAS/A record for apex domain: Netlify's load balancer IPs
+3. Enable Netlify's free SSL (auto-provisioned via Let's Encrypt)
+
+---
+
+## Supabase RLS Policies
+
+Add these to every table in Supabase SQL editor:
+
+```sql
+-- Enable RLS
+ALTER TABLE "User" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "Income" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "Bucket" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "Investment" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "Expense" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "GroceryList" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "GroceryItem" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "RentJar" ENABLE ROW LEVEL SECURITY;
+
+-- Policy: users can only access their own data
+CREATE POLICY "Users can manage own data" ON "Income"
+  FOR ALL USING (auth.uid()::text = "userId");
+
+-- Repeat for all tables
+```
+
+---
+
+## Git Conventions
+
+### Branch naming
+- `feat/expense-log` — new features
+- `fix/tbill-calculation` — bug fixes
+- `chore/update-deps` — maintenance
+
+### Commit messages (conventional commits)
+```
+feat: add grocery list auto-log to expenses
+fix: correct T-bill return calculation for 182-day bills
+chore: update prisma schema for rent jar
+refactor: extract formatNaira to currency utils
+```
+
+### Never commit
+- `.env.local`
+- `node_modules/`
+- `.next/`
+- `prisma/migrations` (exception: do commit these — they're your DB history)
+
+---
+
+## Getting Started Commands
+
+```bash
+# 1. Clone and install
+git clone [repo]
+cd naira-budget
+pnpm install
+
+# 2. Set up environment
+cp .env.example .env.local
+# Fill in Supabase + DB URLs
+
+# 3. Set up database
+pnpm prisma generate
+pnpm prisma migrate dev --name init
+
+# 4. Run dev server
+pnpm dev
+
+# 5. Open app
+# http://localhost:3000
+```
+
+---
+
+## Do Not
+
+- Do not use `pages/` directory — App Router only
+- Do not use `getServerSideProps` or `getStaticProps`
+- Do not write raw SQL — Prisma only
+- Do not store user data in localStorage — Supabase session handles auth state
+- Do not use default exports for components (named exports only)
+- Do not skip loading states — every async page needs a skeleton
+- Do not use `console.log` in production — use proper error boundaries
+- Do not hardcode colours — use Tailwind config or CSS variables
+- Do not make direct Supabase DB calls — Prisma only for data, Supabase only for auth
+- Do not skip Zod validation on any API route
+- Do not use `any` type — ever

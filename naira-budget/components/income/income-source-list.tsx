@@ -1,0 +1,103 @@
+"use client";
+
+import { toast } from "sonner";
+import { formatNaira } from "@/lib/utils/currency";
+import { parseAmountInput } from "@/lib/income/money";
+import { IncomeSourceRow } from "@/components/income/income-source-row";
+
+interface IncomeSourceListProps {
+  sources: Array<{ id: string; label: string; amountMonthly: number }>;
+  totalIncome: number;
+  addDraft: { label: string; amount: string };
+  onAddDraftChange: (next: { label: string; amount: string }) => void;
+  onRefresh: () => void;
+}
+
+export function IncomeSourceList({
+  sources,
+  totalIncome,
+  addDraft,
+  onAddDraftChange,
+  onRefresh,
+}: IncomeSourceListProps) {
+  async function addIncome(e: React.FormEvent) {
+    e.preventDefault();
+    const label = addDraft.label.trim();
+    const amt = parseAmountInput(addDraft.amount);
+    if (!label || amt <= 0) {
+      toast.error("Enter a label and a positive amount.");
+      return;
+    }
+    const res = await fetch("/api/income", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ label, amountMonthly: amt }),
+    });
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}));
+      toast.error(typeof j.error === "string" ? j.error : "Could not add income");
+      return;
+    }
+    toast.success("Income source added");
+    onAddDraftChange({ label: "", amount: "" });
+    onRefresh();
+  }
+
+  return (
+    <section className="border border-white/10 bg-card">
+      <div className="border-b border-white/10 px-4 py-3">
+        <p className="text-xs uppercase tracking-widest text-white/40">Income sources</p>
+        <div className="mt-2 flex flex-wrap items-baseline justify-between gap-2">
+          <h3 className="text-lg font-medium text-foreground">Monthly inflow</h3>
+          <p className="text-sm tabular-nums text-accent">
+            Total {formatNaira(totalIncome)}
+          </p>
+        </div>
+      </div>
+
+      <div className="px-4">
+        {sources.length === 0 ? (
+          <p className="py-6 text-sm text-white/45">No income sources yet.</p>
+        ) : (
+          sources.map((s) => (
+            <IncomeSourceRow
+              key={s.id}
+              id={s.id}
+              label={s.label}
+              amountMonthly={s.amountMonthly}
+              onSaved={onRefresh}
+            />
+          ))
+        )}
+      </div>
+
+      <form
+        onSubmit={(e) => void addIncome(e)}
+        className="border-t border-white/10 px-4 py-4"
+      >
+        <p className="mb-3 text-xs uppercase tracking-widest text-white/35">Add income source</p>
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
+          <input
+            value={addDraft.label}
+            onChange={(e) => onAddDraftChange({ ...addDraft, label: e.target.value })}
+            placeholder="Label"
+            className="min-h-11 min-w-[160px] flex-1 border border-white/15 bg-background px-3 py-2.5 text-sm outline-none focus:border-accent"
+          />
+          <input
+            inputMode="decimal"
+            value={addDraft.amount}
+            onChange={(e) => onAddDraftChange({ ...addDraft, amount: e.target.value })}
+            placeholder="Amount"
+            className="min-h-11 w-full border border-white/15 bg-background px-3 py-2.5 text-sm outline-none focus:border-accent sm:w-40"
+          />
+          <button
+            type="submit"
+            className="min-h-11 border border-accent bg-accent px-5 py-2.5 text-sm font-medium text-accent-foreground hover:bg-accent/90"
+          >
+            Add
+          </button>
+        </div>
+      </form>
+    </section>
+  );
+}

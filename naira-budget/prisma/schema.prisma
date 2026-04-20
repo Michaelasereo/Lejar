@@ -1,0 +1,187 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model UserSettings {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  isOnboarded Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model IncomeSource {
+  id            String   @id @default(cuid())
+  userId        String
+  label         String
+  amountMonthly Decimal  @db.Decimal(14, 2)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model Bucket {
+  id              String   @id @default(cuid())
+  userId          String
+  name            String
+  color           String
+  sortOrder       Int
+  allocatedAmount Decimal  @db.Decimal(14, 2)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  expenses     Expense[]
+  allocations  BucketAllocation[]
+
+  @@index([userId])
+}
+
+model BucketAllocation {
+  id              String   @id @default(cuid())
+  bucketId        String
+  label           String
+  amount          Decimal  @db.Decimal(14, 2)
+  platform        String
+  allocationType  String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  bucket Bucket @relation(fields: [bucketId], references: [id], onDelete: Cascade)
+
+  @@index([bucketId])
+}
+
+model Expense {
+  id         String   @id @default(cuid())
+  userId     String
+  bucketId   String?
+  amount     Decimal  @db.Decimal(14, 2)
+  category   String
+  label      String?
+  occurredAt DateTime
+  createdAt  DateTime @default(now())
+
+  bucket Bucket? @relation(fields: [bucketId], references: [id], onDelete: SetNull)
+
+  @@index([userId, occurredAt])
+}
+
+model Investment {
+  id           String    @id @default(cuid())
+  userId       String
+  type         String
+  label        String
+  amount       Decimal   @db.Decimal(14, 2)
+  investedAt   DateTime
+  maturityDate DateTime?
+  status       String    @default("ACTIVE")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([userId, maturityDate])
+}
+
+model RentJar {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  annualRent  Decimal  @db.Decimal(14, 2)
+  nextDueDate DateTime
+  savedAmount Decimal  @default(0) @db.Decimal(14, 2)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model GroceryItem {
+  id              String    @id @default(cuid())
+  userId          String
+  label           String
+  quantity        String?
+  estimatedPrice  Decimal?  @db.Decimal(14, 2)
+  isPurchased     Boolean   @default(false)
+  sortOrder       Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([userId, isPurchased, sortOrder])
+}
+
+enum JarCategory {
+  RENT
+  EMERGENCY_FUND
+  GADGET
+  TRAVEL
+  EDUCATION
+  INVESTMENT_CAPITAL
+  BUSINESS
+  CELEBRATION
+  OTHER
+}
+
+model SavingsJar {
+  id            String      @id @default(cuid())
+  userId        String
+  name          String
+  emoji         String      @default("🏦")
+  targetAmount  Decimal     @db.Decimal(14, 2)
+  savedAmount   Decimal     @default(0) @db.Decimal(14, 2)
+  monthlyTarget Decimal?    @db.Decimal(14, 2)
+  dueDate       DateTime?
+  color         String      @default("#16a34a")
+  isCompleted   Boolean     @default(false)
+  isPinned      Boolean     @default(false)
+  category      JarCategory @default(OTHER)
+  notes         String?
+  sortOrder     Int         @default(0)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  contributions JarContribution[]
+
+  @@index([userId])
+  @@index([userId, isPinned])
+  @@index([userId, sortOrder])
+}
+
+model JarContribution {
+  id        String   @id @default(cuid())
+  jarId     String
+  amount    Decimal  @db.Decimal(14, 2)
+  note      String?
+  date      DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  jar SavingsJar @relation(fields: [jarId], references: [id], onDelete: Cascade)
+
+  @@index([jarId])
+}
+
+model MonthlySnapshot {
+  id                String   @id @default(cuid())
+  userId            String
+  year              Int
+  month             Int
+  totalIncome       Decimal  @db.Decimal(14, 2)
+  totalExpenses     Decimal  @db.Decimal(14, 2)
+  totalSaved        Decimal  @db.Decimal(14, 2)
+  savingsRate       Decimal  @db.Decimal(14, 6)
+  expenseByCategory Json
+  investmentValue   Decimal  @db.Decimal(14, 2)
+  tbillsValue       Decimal  @db.Decimal(14, 2)
+  risevest          Decimal  @db.Decimal(14, 2)
+  piggyvest         Decimal  @db.Decimal(14, 2)
+  ngx               Decimal  @db.Decimal(14, 2)
+  jarsProgress      Json?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([userId, year, month])
+  @@index([userId])
+}

@@ -1,0 +1,19 @@
+.DS_Store
+.cursor/
+
+# Naira Budget app (paths relative to repo root)
+naira-budget/node_modules/
+naira-budget/.pnpm-store/
+naira-budget/.next/
+naira-budget/out/
+naira-budget/build/
+naira-budget/coverage/
+naira-budget/.vercel/
+naira-budget/.env*
+!naira-budget/.env.example
+naira-budget/*.tsbuildinfo
+naira-budget/next-env.d.ts
+naira-budget/npm-debug.log*
+naira-budget/yarn-debug.log*
+naira-budget/yarn-error.log*
+naira-budget/.pnpm-debug.log*
