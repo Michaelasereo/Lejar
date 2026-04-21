@@ -9,9 +9,15 @@ interface AppShellProps {
   children: ReactNode;
   userEmail: string;
   showAdminNav?: boolean;
+  pendingGroupInviteCount?: number;
 }
 
-export function AppShell({ children, userEmail, showAdminNav = false }: AppShellProps) {
+export function AppShell({
+  children,
+  userEmail,
+  showAdminNav = false,
+  pendingGroupInviteCount = 0,
+}: AppShellProps) {
   return (
     <div className="min-h-screen bg-background">
       <Sidebar showAdminNav={showAdminNav} userEmail={userEmail} />
@@ -20,7 +26,7 @@ export function AppShell({ children, userEmail, showAdminNav = false }: AppShell
         <main className="mx-auto w-full max-w-5xl flex-1 px-4 pb-24 pt-16 md:px-8 md:pb-8 md:pt-6">
           {children}
         </main>
-        <BottomNav />
+        <BottomNav pendingGroupInviteCount={pendingGroupInviteCount} />
       </div>
     </div>
   );

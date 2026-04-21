@@ -10,6 +10,7 @@ import { contributionSchema } from "@/lib/validations/jar";
 import type { z } from "zod";
 import { formatNaira } from "@/lib/utils/currency";
 import { cn } from "@/lib/utils/cn";
+import { ContextMenu } from "@/components/ui/ContextMenu";
 
 type Contrib = {
   id: string;
@@ -50,7 +51,16 @@ export function JarDetailClient({ jar, contributions: initialContribs }: JarDeta
   const [target] = useState(toNum(jar.targetAmount));
   const [complete, setComplete] = useState(jar.isCompleted);
   const [pinned, setPinned] = useState(jar.isPinned);
+  const [name, setName] = useState(jar.name);
+  const [emoji, setEmoji] = useState(jar.emoji);
+  const [editingName, setEditingName] = useState(false);
+  const [draftName, setDraftName] = useState(jar.name);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [savedFlash, setSavedFlash] = useState(false);
+  const [menu, setMenu] = useState({ open: false, x: 0, y: 0 });
+  const pressTimer = useRef<number | null>(null);
   const celebrateRef = useRef(false);
+  const EMOJIS = ["🏠", "🚗", "💻", "📱", "✈️", "📚", "💰", "💍", "🏥", "🎓", "🏦", "🛍️", "🎉", "🔒", "💼", "🌍"];
 
   const percent = useMemo(
     () => (target > 0 ? Math.min(100, Math.round((saved / target) * 100)) : 0),
@@ -157,6 +167,59 @@ export function JarDetailClient({ jar, contributions: initialContribs }: JarDeta
     }
   }
 
+  async function patchJar(body: Record<string, unknown>) {
+    const res = await fetch(`/api/savings-jars/${jar.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error("Could not update");
+    setSavedFlash(true);
+    window.setTimeout(() => setSavedFlash(false), 900);
+    router.refresh();
+  }
+
+  async function deleteJar() {
+    if (!confirm("Delete this jar permanently?")) return;
+    try {
+      const res = await fetch(`/api/savings-jars/${jar.id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Could not delete");
+      toast.success("Jar deleted");
+      router.push("/app/jars");
+      router.refresh();
+    } catch {
+      toast.error("Could not delete jar");
+    }
+  }
+
+  async function saveName(nextName: string) {
+    const trimmed = nextName.trim();
+    if (!trimmed || trimmed === name) {
+      setDraftName(name);
+      setEditingName(false);
+      return;
+    }
+    try {
+      await patchJar({ name: trimmed });
+      setName(trimmed);
+      setDraftName(trimmed);
+      setEditingName(false);
+    } catch {
+      toast.error("Could not update name");
+    }
+  }
+
+  async function saveEmoji(nextEmoji: string) {
+    try {
+      setEmoji(nextEmoji);
+      setShowEmojiPicker(false);
+      await patchJar({ emoji: nextEmoji });
+    } catch {
+      toast.error("Could not update emoji");
+      setEmoji(jar.emoji);
+    }
+  }
+
   return (
     <div className="space-y-10">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -207,14 +270,79 @@ export function JarDetailClient({ jar, contributions: initialContribs }: JarDeta
             />
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-            <span className="text-3xl">{jar.emoji}</span>
+            <button
+              type="button"
+              onClick={() => setShowEmojiPicker((v) => !v)}
+              className="rounded-full p-2 text-3xl hover:bg-white/5"
+            >
+              {emoji}
+            </button>
             <span className="mt-2 text-2xl font-medium tabular-nums text-foreground">
               {percent}%
             </span>
             <span className="text-xs text-white/40">funded</span>
           </div>
         </div>
-        <h1 className="mt-6 text-2xl font-medium text-foreground">{jar.name}</h1>
+        {showEmojiPicker && (
+          <div className="mt-3 grid grid-cols-4 gap-2 border border-white/10 bg-[#1a1a1a] p-2">
+            {EMOJIS.map((value) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => void saveEmoji(value)}
+                className={`h-10 w-10 ${emoji === value ? "border border-white/20 bg-white/10" : ""}`}
+              >
+                {value}
+              </button>
+            ))}
+          </div>
+        )}
+        <div
+          className="mt-6 flex items-center gap-2"
+          onContextMenu={(e) => {
+            e.preventDefault();
+            setMenu({ open: true, x: e.clientX, y: e.clientY });
+          }}
+          onTouchStart={(e) => {
+            const t = e.touches[0];
+            pressTimer.current = window.setTimeout(() => {
+              setMenu({ open: true, x: t.clientX, y: t.clientY });
+            }, 500);
+          }}
+          onTouchEnd={() => {
+            if (pressTimer.current) window.clearTimeout(pressTimer.current);
+          }}
+        >
+          {editingName ? (
+            <div>
+              <input
+                value={draftName}
+                maxLength={50}
+                onChange={(e) => setDraftName(e.target.value)}
+                onBlur={() => void saveName(draftName)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") void saveName(draftName);
+                  if (e.key === "Escape") {
+                    setDraftName(name);
+                    setEditingName(false);
+                  }
+                }}
+                autoFocus
+                className="border-b border-white/30 bg-transparent text-2xl font-medium text-foreground outline-none"
+              />
+              <p className="text-[10px] text-white/20">{draftName.length}/50</p>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setEditingName(true)}
+              className="text-2xl font-medium text-foreground"
+            >
+              {name} <span className="text-sm text-white/30">✎</span>
+            </button>
+          )}
+          {savedFlash && <span className="text-xs text-white/30">Saved</span>}
+        </div>
         <p className="mt-2 text-sm text-white/50">
           {formatNaira(saved)} of {formatNaira(target)}
         </p>
@@ -291,6 +419,23 @@ export function JarDetailClient({ jar, contributions: initialContribs }: JarDeta
           )}
         </ul>
       </section>
+      <ContextMenu
+        open={menu.open}
+        x={menu.x}
+        y={menu.y}
+        onClose={() => setMenu((m) => ({ ...m, open: false }))}
+        items={[
+          { id: "name", label: "Edit name", onSelect: () => setEditingName(true) },
+          { id: "emoji", label: "Change emoji", onSelect: () => setShowEmojiPicker(true) },
+          {
+            id: "details",
+            label: "Edit jar details",
+            onSelect: () =>
+              toast.message("Use the existing jar controls for target, notes, and pin settings."),
+          },
+          { id: "delete", label: "Delete jar", danger: true, onSelect: () => void deleteJar() },
+        ]}
+      />
     </div>
   );
 }

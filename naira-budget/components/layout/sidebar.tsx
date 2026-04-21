@@ -32,7 +32,7 @@ function buildNavItems(showAdminNav: boolean): NavItem[] {
     { href: "/app/expenses", label: "Expenses", icon: Receipt },
     { href: "/app/grocery", label: "Grocery", icon: ShoppingCart },
     { href: "/app/analytics", label: "Analytics", icon: BarChart3 },
-    { href: "/app/jars", label: "Savings jars", icon: Landmark },
+    { href: "/app/jars", label: "Savings Jars", icon: Landmark },
     { href: "/app/projection", label: "Projection", icon: LineChart },
   ];
   const tail: NavItem[] = [
@@ -83,6 +83,7 @@ export function Sidebar({ userEmail, showAdminNav = false }: SidebarProps) {
             <Link
               key={item.href}
               href={item.href}
+              title={item.label}
               className={cn(
                 "flex items-center gap-3 rounded-none border-l-2 py-2.5 pl-3 text-sm transition-colors",
                 active

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
   INVESTMENT_TYPES,
@@ -11,6 +11,7 @@ import { parseAmountInput } from "@/lib/income/money";
 import { createInvestmentSchema } from "@/lib/validations/investment";
 import type { InvestmentTypeValue } from "@/lib/investments/constants";
 import { cn } from "@/lib/utils/cn";
+import { calculateTBillReturn } from "@/lib/utils/tbills";
 
 interface AddInvestmentFormProps {
   onCreated: () => void;
@@ -22,7 +23,22 @@ export function AddInvestmentForm({ onCreated }: AddInvestmentFormProps) {
   const [amount, setAmount] = useState("");
   const [investedAt, setInvestedAt] = useState(() => dateToInputValue(new Date()));
   const [maturityDate, setMaturityDate] = useState("");
+  const [annualRate, setAnnualRate] = useState("");
+  const [expectedProfit, setExpectedProfit] = useState("");
+  const [editingExpectedProfit, setEditingExpectedProfit] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (type !== "T_BILL" || editingExpectedProfit) return;
+    const principal = parseAmountInput(amount);
+    const rate = parseAmountInput(annualRate);
+    const start = investedAt ? new Date(investedAt) : null;
+    const end = maturityDate ? new Date(maturityDate) : null;
+    if (!start || !end || end <= start) return;
+    const days = Math.ceil((end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000));
+    const estimate = calculateTBillReturn(principal, rate, days);
+    setExpectedProfit(String(Math.round(estimate)));
+  }, [type, editingExpectedProfit, amount, annualRate, investedAt, maturityDate]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -32,6 +48,8 @@ export function AddInvestmentForm({ onCreated }: AddInvestmentFormProps) {
       amount: parseAmountInput(amount),
       investedAt,
       maturityDate: maturityDate.trim() === "" ? null : maturityDate,
+      expectedProfit:
+        expectedProfit.trim() === "" ? null : parseAmountInput(expectedProfit),
       status: "ACTIVE" as const,
     };
 
@@ -64,6 +82,9 @@ export function AddInvestmentForm({ onCreated }: AddInvestmentFormProps) {
       setLabel("");
       setAmount("");
       setMaturityDate("");
+      setAnnualRate("");
+      setExpectedProfit("");
+      setEditingExpectedProfit(false);
       setInvestedAt(dateToInputValue(new Date()));
       setType("OTHER");
       onCreated();
@@ -134,6 +155,58 @@ export function AddInvestmentForm({ onCreated }: AddInvestmentFormProps) {
             onChange={(e) => setMaturityDate(e.target.value)}
             className="min-h-11 border border-white/15 bg-background px-3 py-2 text-sm outline-none focus:border-accent"
           />
+        </label>
+        {type === "T_BILL" && (
+          <label className="flex flex-col gap-1.5 text-xs text-white/50">
+            Interest rate (% p.a.)
+            <input
+              inputMode="decimal"
+              value={annualRate}
+              onChange={(e) => {
+                const next = e.target.value;
+                setAnnualRate(next);
+                if (!editingExpectedProfit) {
+                  const principal = parseAmountInput(amount);
+                  const rate = parseAmountInput(next);
+                  const start = investedAt ? new Date(investedAt) : null;
+                  const end = maturityDate ? new Date(maturityDate) : null;
+                  if (start && end && end > start) {
+                    const days = Math.ceil(
+                      (end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000),
+                    );
+                    const estimate = calculateTBillReturn(principal, rate, days);
+                    setExpectedProfit(String(Math.round(estimate)));
+                  }
+                }
+              }}
+              placeholder="e.g. 21"
+              className="min-h-11 border border-white/15 bg-background px-3 py-2 text-sm outline-none focus:border-accent"
+            />
+          </label>
+        )}
+        <label className="flex flex-col gap-1.5 text-xs text-white/50">
+          Expected profit (₦)
+          <input
+            inputMode="decimal"
+            value={expectedProfit}
+            readOnly={type === "T_BILL" && !editingExpectedProfit}
+            onChange={(e) => setExpectedProfit(e.target.value)}
+            placeholder="Optional"
+            className="min-h-11 border border-white/15 bg-background px-3 py-2 text-sm outline-none focus:border-accent disabled:opacity-70"
+          />
+          <span className="text-[11px] text-white/35">
+            Enter the profit you expect on maturity. This will not count in totals until
+            confirmed.
+          </span>
+          {type === "T_BILL" && (
+            <button
+              type="button"
+              onClick={() => setEditingExpectedProfit((prev) => !prev)}
+              className="w-fit text-[11px] text-accent hover:text-accent/80"
+            >
+              {editingExpectedProfit ? "Use auto-calculation" : "Edit manually"}
+            </button>
+          )}
         </label>
       </div>
       <p className="mt-2 text-[11px] text-white/35">

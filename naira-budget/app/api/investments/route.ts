@@ -46,6 +46,10 @@ export async function POST(req: NextRequest) {
         type: body.type,
         label: body.label,
         amount: new Prisma.Decimal(body.amount),
+        expectedProfit:
+          body.expectedProfit === undefined || body.expectedProfit === null
+            ? null
+            : new Prisma.Decimal(body.expectedProfit),
         investedAt,
         maturityDate,
         status: body.status ?? "ACTIVE",

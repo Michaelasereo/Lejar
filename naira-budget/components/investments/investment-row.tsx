@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import type { InvestmentStatus } from "@prisma/client";
 import { Pencil, Trash2, Check, X } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -15,6 +16,7 @@ import { parseAmountInput } from "@/lib/income/money";
 import { formatNaira } from "@/lib/utils/currency";
 import type { InvestmentRecord } from "@/lib/investments/get-investments-page-data";
 import { cn } from "@/lib/utils/cn";
+import { daysSinceMaturity, shouldShowProfitConfirmation } from "@/lib/utils/tbills";
 
 interface InvestmentRowProps {
   row: InvestmentRecord;
@@ -31,6 +33,11 @@ export function InvestmentRow({ row, onSaved }: InvestmentRowProps) {
     row.maturityDate ? dateToInputValue(row.maturityDate) : "",
   );
   const [draftStatus, setDraftStatus] = useState(row.status);
+  const [actualProfit, setActualProfit] = useState(
+    String(Math.round(row.expectedProfit ?? row.actualProfit ?? 0)),
+  );
+  const [confirmNotes, setConfirmNotes] = useState("");
+  const [confirmingProfit, setConfirmingProfit] = useState(false);
 
   function startEdit() {
     setDraftType(row.type as InvestmentTypeValue);
@@ -92,6 +99,30 @@ export function InvestmentRow({ row, onSaved }: InvestmentRowProps) {
     }
     toast.success("Removed");
     onSaved();
+  }
+
+  async function confirmProfit() {
+    setConfirmingProfit(true);
+    try {
+      const profit = parseAmountInput(actualProfit);
+      const res = await fetch(`/api/investments/${row.id}/confirm-profit`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          actualProfit: profit,
+          notes: confirmNotes.trim() || undefined,
+        }),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        toast.error(typeof j.error === "string" ? j.error : "Could not confirm profit");
+        return;
+      }
+      toast.success(`${formatNaira(profit)} profit confirmed and added to your portfolio`);
+      onSaved();
+    } finally {
+      setConfirmingProfit(false);
+    }
   }
 
   return (
@@ -203,6 +234,19 @@ export function InvestmentRow({ row, onSaved }: InvestmentRowProps) {
             </div>
             <p className="mt-1 font-medium text-foreground">{row.label}</p>
             <p className="mt-1 text-sm tabular-nums text-white/70">{formatNaira(row.amount)}</p>
+            {row.expectedProfit !== null && (
+              <div className="mt-1">
+                <p className="text-[10px] uppercase tracking-wide text-white/30">Expected return</p>
+                <p className="text-xs tabular-nums text-white/40">
+                  Expected profit: {formatNaira(row.expectedProfit)}
+                </p>
+              </div>
+            )}
+            {row.actualProfit !== null && (
+              <p className="mt-1 text-xs tabular-nums text-green-400">
+                Actual profit confirmed: {formatNaira(row.actualProfit)}
+              </p>
+            )}
             <p className="mt-1 text-xs text-white/40">
               Invested {dateToInputValue(row.investedAt)}
               {row.maturityDate ? ` · Matures ${dateToInputValue(row.maturityDate)}` : ""}
@@ -224,6 +268,52 @@ export function InvestmentRow({ row, onSaved }: InvestmentRowProps) {
               aria-label="Delete"
             >
               <Trash2 className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
+      {row.maturityDate &&
+        shouldShowProfitConfirmation(row.maturityDate, row.status as InvestmentStatus) && (
+        <div className="mt-3 border-t border-amber-500/20 bg-amber-500/5 p-3">
+          <p className="text-xs text-amber-100/90">
+            Matured {Math.max(0, daysSinceMaturity(row.maturityDate))} days ago - confirm your actual
+            profit
+          </p>
+          <div className="mt-2 grid gap-2 md:grid-cols-2">
+            <label className="flex flex-col gap-1 text-xs text-white/50">
+              Actual profit received (₦)
+              <input
+                inputMode="decimal"
+                value={actualProfit}
+                onChange={(e) => setActualProfit(e.target.value)}
+                className="min-h-10 border border-white/15 bg-background px-2 py-1.5 text-sm"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-xs text-white/50">
+              Notes
+              <input
+                value={confirmNotes}
+                onChange={(e) => setConfirmNotes(e.target.value)}
+                placeholder="Optional"
+                className="min-h-10 border border-white/15 bg-background px-2 py-1.5 text-sm"
+              />
+            </label>
+          </div>
+          <div className="mt-2 flex gap-2">
+            <button
+              type="button"
+              onClick={() => void confirmProfit()}
+              disabled={confirmingProfit}
+              className="min-h-10 border border-accent bg-accent px-3 text-xs font-medium text-accent-foreground disabled:opacity-60"
+            >
+              {confirmingProfit ? "Confirming..." : "Confirm & add to portfolio"}
+            </button>
+            <button
+              type="button"
+              className="min-h-10 border border-white/15 px-3 text-xs text-white/70"
+              onClick={startEdit}
+            >
+              Roll over instead
             </button>
           </div>
         </div>

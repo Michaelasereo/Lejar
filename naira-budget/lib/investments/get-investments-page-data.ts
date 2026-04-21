@@ -6,6 +6,10 @@ export interface InvestmentRecord {
   type: string;
   label: string;
   amount: number;
+  expectedProfit: number | null;
+  actualProfit: number | null;
+  profitConfirmed: boolean;
+  profitConfirmedAt: Date | null;
   investedAt: Date;
   maturityDate: Date | null;
   status: string;
@@ -14,6 +18,8 @@ export interface InvestmentRecord {
 export interface InvestmentsPageData {
   investments: InvestmentRecord[];
   portfolioTotalActive: number;
+  confirmedReturnsTotal: number;
+  grandTotal: number;
   byTypeActive: Record<string, number>;
   maturingSoon: Array<{
     id: string;
@@ -26,6 +32,15 @@ export interface InvestmentsPageData {
 const MS_DAY = 24 * 60 * 60 * 1000;
 
 export async function getInvestmentsPageData(userId: string): Promise<InvestmentsPageData> {
+  await prisma.investment.updateMany({
+    where: {
+      userId,
+      status: "ACTIVE",
+      maturityDate: { lte: new Date() },
+    },
+    data: { status: "MATURED" },
+  });
+
   const rows = await prisma.investment.findMany({
     where: { userId },
     orderBy: [{ investedAt: "desc" }, { createdAt: "desc" }],
@@ -36,13 +51,21 @@ export async function getInvestmentsPageData(userId: string): Promise<Investment
     type: r.type,
     label: r.label,
     amount: toNumber(r.amount),
+    expectedProfit: r.expectedProfit ? toNumber(r.expectedProfit) : null,
+    actualProfit: r.actualProfit ? toNumber(r.actualProfit) : null,
+    profitConfirmed: r.profitConfirmed,
+    profitConfirmedAt: r.profitConfirmedAt,
     investedAt: r.investedAt,
     maturityDate: r.maturityDate,
     status: r.status,
   }));
 
-  const active = rows.filter((r) => r.status === "ACTIVE");
+  const active = rows.filter((r) => r.status === "ACTIVE" || r.status === "MATURED");
   const portfolioTotalActive = active.reduce((s, r) => s + toNumber(r.amount), 0);
+  const confirmedReturnsTotal = rows
+    .filter((r) => r.status === "MATURED_CONFIRMED")
+    .reduce((s, r) => s + (r.actualProfit ? toNumber(r.actualProfit) : 0), 0);
+  const grandTotal = portfolioTotalActive + confirmedReturnsTotal;
 
   const byTypeActive: Record<string, number> = {};
   for (const r of active) {
@@ -72,6 +95,8 @@ export async function getInvestmentsPageData(userId: string): Promise<Investment
   return {
     investments,
     portfolioTotalActive,
+    confirmedReturnsTotal,
+    grandTotal,
     byTypeActive,
     maturingSoon,
   };

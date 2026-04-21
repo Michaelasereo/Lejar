@@ -12,7 +12,7 @@ const TITLE_BY_PREFIX: { prefix: string; title: string }[] = [
   { prefix: "/app/expenses", title: "Expenses" },
   { prefix: "/app/grocery", title: "Grocery" },
   { prefix: "/app/analytics", title: "Analytics" },
-  { prefix: "/app/jars", title: "Savings jars" },
+  { prefix: "/app/jars", title: "Savings Jars" },
   { prefix: "/app/projection", title: "Projection" },
   { prefix: "/app/admin", title: "Admin" },
   { prefix: "/app/settings", title: "Settings" },

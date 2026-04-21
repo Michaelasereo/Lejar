@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { X } from "lucide-react";
 import { formatNaira } from "@/lib/utils/currency";
 
@@ -24,16 +25,23 @@ export function TbMaturityBanner({ items }: TbMaturityBannerProps) {
 
   const first = items[0]!;
   const days = daysUntil(first.maturityDate);
+  const matured = days <= 0;
 
   return (
     <div className="mb-8 flex items-start justify-between gap-4 border border-amber-500/30 bg-amber-500/5 px-4 py-3">
-      <p className="text-sm text-amber-200/90">
-        <span className="font-medium text-amber-100">
-          {formatNaira(first.amount)} T-bill
-        </span>{" "}
-        matures in {days} day{days === 1 ? "" : "s"} — mark as rolled over or
-        withdrawn in Investments.
-      </p>
+      <div className="text-sm text-amber-200/90">
+        <p>
+          <span className="font-medium text-amber-100">{first.label}</span>{" "}
+          {matured
+            ? `matured on ${first.maturityDate.toLocaleDateString("en-NG")}. Confirm your actual profit to add it to your portfolio.`
+            : `matures in ${days} day${days === 1 ? "" : "s"}.`}
+        </p>
+        {matured && (
+          <Link href="/app/investments" className="mt-1 inline-block text-xs text-accent">
+            Confirm profit -&gt;
+          </Link>
+        )}
+      </div>
       <button
         type="button"
         onClick={() => setDismissed(true)}

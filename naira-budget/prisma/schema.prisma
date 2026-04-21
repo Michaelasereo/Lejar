@@ -1,5 +1,9 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  // Netlify Functions run on AWS Lambda (Amazon Linux 2023, OpenSSL 3.x).
+  // Without this target Prisma Client has no matching engine at runtime and the
+  // serverless function crashes with a generic "unknown error".
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
 datasource db {
@@ -37,21 +41,21 @@ model Bucket {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  expenses     Expense[]
-  allocations  BucketAllocation[]
+  expenses    Expense[]
+  allocations BucketAllocation[]
 
   @@index([userId])
 }
 
 model BucketAllocation {
-  id              String   @id @default(cuid())
-  bucketId        String
-  label           String
-  amount          Decimal  @db.Decimal(14, 2)
-  platform        String
-  allocationType  String
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id             String   @id @default(cuid())
+  bucketId       String
+  label          String
+  amount         Decimal  @db.Decimal(14, 2)
+  platform       String
+  allocationType String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   bucket Bucket @relation(fields: [bucketId], references: [id], onDelete: Cascade)
 
@@ -68,22 +72,27 @@ model Expense {
   occurredAt DateTime
   createdAt  DateTime @default(now())
 
-  bucket Bucket? @relation(fields: [bucketId], references: [id], onDelete: SetNull)
+  bucket       Bucket?       @relation(fields: [bucketId], references: [id], onDelete: SetNull)
+  groceryItems GroceryItem[]
 
   @@index([userId, occurredAt])
 }
 
 model Investment {
-  id           String    @id @default(cuid())
-  userId       String
-  type         String
-  label        String
-  amount       Decimal   @db.Decimal(14, 2)
-  investedAt   DateTime
-  maturityDate DateTime?
-  status       String    @default("ACTIVE")
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id                String           @id @default(cuid())
+  userId            String
+  type              String
+  label             String
+  amount            Decimal          @db.Decimal(14, 2)
+  expectedProfit    Decimal?         @db.Decimal(14, 2)
+  actualProfit      Decimal?         @db.Decimal(14, 2)
+  profitConfirmed   Boolean          @default(false)
+  profitConfirmedAt DateTime?
+  investedAt        DateTime
+  maturityDate      DateTime?
+  status            InvestmentStatus @default(ACTIVE)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
 
   @@index([userId])
   @@index([userId, maturityDate])
@@ -100,17 +109,40 @@ model RentJar {
 }
 
 model GroceryItem {
-  id              String    @id @default(cuid())
-  userId          String
-  label           String
-  quantity        String?
-  estimatedPrice  Decimal?  @db.Decimal(14, 2)
-  isPurchased     Boolean   @default(false)
-  sortOrder       Int       @default(0)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  id                String    @id @default(cuid())
+  userId            String
+  listId            String?
+  label             String
+  quantity          String?
+  estimatedPrice    Decimal?  @db.Decimal(14, 2)
+  isPurchased       Boolean   @default(false)
+  movedToExpenses   Boolean   @default(false)
+  movedToExpensesAt DateTime?
+  expenseId         String?
+  sortOrder         Int       @default(0)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  list    GroceryList? @relation(fields: [listId], references: [id], onDelete: SetNull)
+  expense Expense?     @relation(fields: [expenseId], references: [id], onDelete: SetNull)
 
   @@index([userId, isPurchased, sortOrder])
+  @@index([listId])
+  @@index([expenseId])
+}
+
+model GroceryList {
+  id              String   @id @default(cuid())
+  userId          String
+  name            String
+  partiallyLogged Boolean  @default(false)
+  isCompleted     Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  items GroceryItem[]
+
+  @@index([userId])
 }
 
 enum JarCategory {
@@ -184,4 +216,79 @@ model MonthlySnapshot {
 
   @@unique([userId, year, month])
   @@index([userId])
+}
+
+model GroupSavingsJar {
+  id           String    @id @default(cuid())
+  createdById  String
+  name         String
+  emoji        String    @default("🏦")
+  targetAmount Decimal   @db.Decimal(14, 2)
+  dueDate      DateTime?
+  color        String    @default("#16a34a")
+  isCompleted  Boolean   @default(false)
+  notes        String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  members       GroupJarMember[]
+  contributions GroupJarContribution[]
+
+  @@index([createdById])
+}
+
+model GroupJarMember {
+  id          String               @id @default(cuid())
+  jarId       String
+  userId      String?
+  email       String
+  displayName String?
+  role        GroupJarRole         @default(MEMBER)
+  status      GroupJarMemberStatus @default(PENDING)
+  inviteToken String               @unique @default(cuid())
+  invitedAt   DateTime             @default(now())
+  joinedAt    DateTime?
+
+  jar           GroupSavingsJar        @relation(fields: [jarId], references: [id], onDelete: Cascade)
+  contributions GroupJarContribution[]
+
+  @@index([jarId])
+  @@index([userId])
+  @@index([email])
+}
+
+model GroupJarContribution {
+  id        String   @id @default(cuid())
+  jarId     String
+  memberId  String
+  amount    Decimal  @db.Decimal(14, 2)
+  note      String?
+  date      DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  jar    GroupSavingsJar @relation(fields: [jarId], references: [id], onDelete: Cascade)
+  member GroupJarMember  @relation(fields: [memberId], references: [id])
+
+  @@index([jarId])
+  @@index([memberId])
+}
+
+enum InvestmentStatus {
+  ACTIVE
+  MATURED
+  MATURED_CONFIRMED
+  ROLLED_OVER
+  WITHDRAWN
+}
+
+enum GroupJarRole {
+  ADMIN
+  MEMBER
+}
+
+enum GroupJarMemberStatus {
+  PENDING
+  ACTIVE
+  DECLINED
+  REMOVED
 }

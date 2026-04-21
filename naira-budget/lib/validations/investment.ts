@@ -10,7 +10,13 @@ const investmentTypeEnum = z.enum([
   "OTHER",
 ]);
 
-const statusEnum = z.enum(["ACTIVE", "MATURED", "CLOSED"]);
+const statusEnum = z.enum([
+  "ACTIVE",
+  "MATURED",
+  "MATURED_CONFIRMED",
+  "ROLLED_OVER",
+  "WITHDRAWN",
+]);
 
 export const createInvestmentSchema = z
   .object({
@@ -19,6 +25,7 @@ export const createInvestmentSchema = z
     amount: z.number().positive("Amount must be greater than zero"),
     investedAt: z.string().min(1, "Pick an investment date"),
     maturityDate: z.string().optional().nullable(),
+    expectedProfit: z.number().nonnegative().optional().nullable(),
     status: statusEnum.optional(),
   })
   .superRefine((data, ctx) => {
@@ -39,5 +46,11 @@ export const updateInvestmentSchema = z.object({
   amount: z.number().positive().finite().optional(),
   investedAt: z.string().optional(),
   maturityDate: z.union([z.string(), z.null()]).optional(),
+  expectedProfit: z.number().nonnegative().nullable().optional(),
   status: statusEnum.optional(),
+});
+
+export const confirmInvestmentProfitSchema = z.object({
+  actualProfit: z.number().nonnegative(),
+  notes: z.string().max(250).optional(),
 });

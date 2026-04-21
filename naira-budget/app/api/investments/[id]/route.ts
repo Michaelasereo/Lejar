@@ -60,14 +60,19 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
     type?: string;
     label?: string;
     amount?: Prisma.Decimal;
+    expectedProfit?: Prisma.Decimal | null;
     investedAt?: Date;
     maturityDate?: Date | null;
-    status?: string;
+    status?: "ACTIVE" | "MATURED" | "MATURED_CONFIRMED" | "ROLLED_OVER" | "WITHDRAWN";
   } = {};
 
   if (data.type !== undefined) updateData.type = data.type;
   if (data.label !== undefined) updateData.label = data.label;
   if (data.amount !== undefined) updateData.amount = new Prisma.Decimal(data.amount);
+  if (data.expectedProfit !== undefined) {
+    updateData.expectedProfit =
+      data.expectedProfit === null ? null : new Prisma.Decimal(data.expectedProfit);
+  }
   if (data.investedAt !== undefined) {
     const d = dateInputToDate(data.investedAt);
     if (Number.isNaN(d.getTime())) {

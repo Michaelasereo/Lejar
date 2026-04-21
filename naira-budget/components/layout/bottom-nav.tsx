@@ -26,7 +26,7 @@ const PRIMARY: {
   { href: "/app/dashboard", label: "Home", icon: LayoutDashboard },
   { href: "/app/income", label: "Buckets", icon: Wallet },
   { href: "/app/expenses", label: "Spend", icon: Receipt },
-  { href: "/app/investments", label: "Invest", icon: TrendingUp },
+  { href: "/app/jars", label: "Jars", icon: Landmark },
   { mode: "more", label: "More", icon: MoreHorizontal },
 ];
 
@@ -34,7 +34,7 @@ const MORE_LINKS: { href: string; label: string; icon: typeof ShoppingCart }[] =
   [
     { href: "/app/grocery", label: "Grocery", icon: ShoppingCart },
     { href: "/app/analytics", label: "Analytics", icon: BarChart3 },
-    { href: "/app/jars", label: "Savings jars", icon: Landmark },
+    { href: "/app/investments", label: "Invest", icon: TrendingUp },
     { href: "/app/projection", label: "Projection", icon: LineChart },
     { href: "/app/settings", label: "Settings", icon: Settings },
   ];
@@ -46,7 +46,11 @@ function isActivePath(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function BottomNav() {
+interface BottomNavProps {
+  pendingGroupInviteCount?: number;
+}
+
+export function BottomNav({ pendingGroupInviteCount = 0 }: BottomNavProps) {
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
 
@@ -91,6 +95,7 @@ export function BottomNav() {
 
           const href = item.href!;
           const active = isActivePath(pathname, href);
+          const showInviteDot = href === "/app/jars" && pendingGroupInviteCount > 0;
           return (
             <Link
               key={href}
@@ -113,6 +118,9 @@ export function BottomNav() {
                 )}
                 strokeWidth={1.75}
               />
+              {showInviteDot && (
+                <span className="absolute right-2 top-2 h-2.5 w-2.5 rounded-full bg-red-500" />
+              )}
             </Link>
           );
         })}

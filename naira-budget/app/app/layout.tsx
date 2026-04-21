@@ -27,9 +27,22 @@ export default async function AppLayout({
   }
 
   const showAdminNav = isAdminUserId(user.id);
+  const pendingGroupInviteCount = await prisma.groupJarMember.count({
+    where: {
+      status: "PENDING",
+      OR: [
+        { userId: user.id },
+        ...(user.email ? [{ email: user.email }] : []),
+      ],
+    },
+  });
 
   return (
-    <AppShell showAdminNav={showAdminNav} userEmail={user.email ?? ""}>
+    <AppShell
+      showAdminNav={showAdminNav}
+      userEmail={user.email ?? ""}
+      pendingGroupInviteCount={pendingGroupInviteCount}
+    >
       {children}
     </AppShell>
   );

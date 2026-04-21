@@ -14,7 +14,9 @@ export type InvestmentTypeValue = (typeof INVESTMENT_TYPES)[number]["value"];
 export const INVESTMENT_STATUSES = [
   { value: "ACTIVE", label: "Active" },
   { value: "MATURED", label: "Matured" },
-  { value: "CLOSED", label: "Closed" },
+  { value: "MATURED_CONFIRMED", label: "Confirmed" },
+  { value: "ROLLED_OVER", label: "Rolled over" },
+  { value: "WITHDRAWN", label: "Withdrawn" },
 ] as const;
 
 export function investmentTypeLabel(value: string): string {

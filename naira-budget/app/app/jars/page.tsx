@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { formatNaira } from "@/lib/utils/currency";
 import { cn } from "@/lib/utils/cn";
 import { MigrateRentTrigger } from "@/components/jars/migrate-rent-trigger";
+import { GroupJarCard } from "@/components/jars/GroupJarCard";
 
 export const metadata: Metadata = {
   title: "Savings jars — Naira Budget",
@@ -32,6 +33,19 @@ export default async function JarsPage() {
     include: {
       _count: { select: { contributions: true } },
     },
+  });
+  const groupJars = await prisma.groupSavingsJar.findMany({
+    where: {
+      OR: [
+        { createdById: user.id },
+        { members: { some: { userId: user.id, status: "ACTIVE" } } },
+      ],
+    },
+    include: {
+      members: true,
+      contributions: true,
+    },
+    orderBy: { createdAt: "desc" },
   });
 
   return (
@@ -101,6 +115,35 @@ export default async function JarsPage() {
           })
         )}
       </div>
+
+      <section className="mt-10 space-y-4">
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="text-sm uppercase tracking-widest text-white/40">Group jars</h2>
+          <Link href="/app/jars/group/new" className="text-sm text-accent">
+            + New group jar
+          </Link>
+        </div>
+        {groupJars.length === 0 ? (
+          <p className="text-sm text-white/40">No group jars yet.</p>
+        ) : (
+          <div className="grid gap-3 md:grid-cols-2">
+            {groupJars.map((jar) => (
+              <GroupJarCard
+                key={jar.id}
+                jar={{
+                  id: jar.id,
+                  name: jar.name,
+                  emoji: jar.emoji,
+                  targetAmount: toNum(jar.targetAmount),
+                  totalSaved: jar.contributions.reduce((sum, c) => sum + toNum(c.amount), 0),
+                  memberCount: jar.members.length,
+                  isAdmin: jar.createdById === user.id,
+                }}
+              />
+            ))}
+          </div>
+        )}
+      </section>
 
       <div className="mt-10 border border-white/10 bg-black/30 p-4">
         <p className="text-sm text-white/60">

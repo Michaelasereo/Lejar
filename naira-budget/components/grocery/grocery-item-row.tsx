@@ -161,7 +161,12 @@ export function GroceryItemRow({ row, onSaved }: GroceryItemRowProps) {
               {row.estimatedPrice !== null ? (
                 <span className="tabular-nums text-white/75">{formatNaira(row.estimatedPrice)}</span>
               ) : (
-                <span className="text-amber-400/90">Price later</span>
+                <span className="text-amber-400/90">{row.isPurchased ? "- fill price" : "Price later"}</span>
+              )}
+              {row.movedToExpenses && (
+                <span className="border border-green-500/30 bg-green-500/10 px-2 py-0.5 text-[10px] uppercase tracking-wide text-green-400">
+                  Logged
+                </span>
               )}
             </div>
           </div>
