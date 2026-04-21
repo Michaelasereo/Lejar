@@ -28,6 +28,7 @@ export function CtaSection() {
         </h2>
         <Link
           href="/signup"
+          prefetch={false}
           className="inline-flex min-h-11 min-w-[10rem] items-center justify-center border border-transparent bg-accent px-10 py-3 text-sm font-medium text-accent-foreground transition-opacity hover:opacity-90"
         >
           Start free

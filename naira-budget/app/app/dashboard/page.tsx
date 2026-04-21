@@ -34,7 +34,19 @@ export default async function DashboardPage({
     monthKey = monthKeyFromDate(new Date());
   }
 
-  const data = await getDashboardData(user.id, monthKey);
+  let data;
+  try {
+    data = await getDashboardData(user.id, monthKey);
+  } catch (err) {
+    // Surface concrete DB/Prisma errors to Netlify function logs instead of
+    // bubbling an opaque "unknown error" to the client.
+    console.error("[dashboard] getDashboardData failed", {
+      userId: user.id,
+      monthKey,
+      error: err instanceof Error ? { message: err.message, stack: err.stack } : err,
+    });
+    throw err;
+  }
   if (!data) {
     redirect("/app/dashboard");
   }

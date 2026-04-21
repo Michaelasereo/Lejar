@@ -23,6 +23,7 @@ export function HeroSection() {
         <div className="flex flex-col items-center justify-center gap-4 sm:flex-row sm:gap-5">
           <Link
             href="/signup"
+            prefetch={false}
             className="min-h-11 w-full min-w-[11rem] border border-transparent bg-accent px-8 py-3 text-center text-sm font-medium text-accent-foreground transition-opacity hover:opacity-90 sm:w-auto"
           >
             Start free

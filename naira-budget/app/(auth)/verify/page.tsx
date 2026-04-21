@@ -37,6 +37,7 @@ export default function VerifyPage({
         <ResendVerificationButton email={email} />
         <Link
           href="/login"
+          prefetch={false}
           className="block text-sm font-medium text-white/50 underline-offset-4 transition-colors hover:text-white/75 hover:underline"
         >
           Back to sign in

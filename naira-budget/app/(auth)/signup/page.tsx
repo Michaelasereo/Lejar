@@ -48,7 +48,6 @@ export default function SignupPage() {
     }
 
     router.push(`/verify?email=${encodeURIComponent(data.email)}`);
-    router.refresh();
   }
 
   return (
@@ -171,6 +170,7 @@ export default function SignupPage() {
         Already have an account?{" "}
         <Link
           href="/login"
+          prefetch={false}
           className="font-medium text-white/80 underline-offset-4 hover:underline"
         >
           Sign in

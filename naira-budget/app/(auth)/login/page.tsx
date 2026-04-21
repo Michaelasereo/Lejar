@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { Eye, EyeOff } from "lucide-react";
@@ -12,7 +11,6 @@ import { getAppOrigin } from "@/lib/utils/url";
 import { cn } from "@/lib/utils/cn";
 
 export default function LoginPage() {
-  const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [magicStatus, setMagicStatus] = useState<string | null>(null);
@@ -44,8 +42,9 @@ export default function LoginPage() {
       return;
     }
 
-    router.push("/app/dashboard");
-    router.refresh();
+    // Full navigation avoids React Flight "Connection closed" on Netlify after
+    // client-side router transitions from /login (RSC stream + edge timing).
+    window.location.assign("/app/dashboard");
   }
 
   async function handleForgotPassword() {
@@ -209,6 +208,7 @@ export default function LoginPage() {
         Don&apos;t have an account?{" "}
         <Link
           href="/signup"
+          prefetch={false}
           className="font-medium text-white/80 underline-offset-4 hover:underline"
         >
           Sign up

@@ -35,7 +35,15 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
+  /**
+   * Session refresh only where auth matters. Skipping `/`, `/login`, and `/signup`
+   * avoids extra Supabase work on every RSC flight to public pages (helps prevent
+   * flaky React Flight "Connection closed" logs when streams abort under load).
+   */
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/app/:path*",
+    "/onboarding/:path*",
+    "/verify",
+    "/api/:path*",
   ],
 };

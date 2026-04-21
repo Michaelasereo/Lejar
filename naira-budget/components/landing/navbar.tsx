@@ -53,12 +53,14 @@ export function LandingNavbar() {
         <div className="hidden items-center gap-6 md:flex">
           <Link
             href="/login"
+            prefetch={false}
             className="text-xs font-medium uppercase tracking-widest text-white/50 transition-colors hover:text-white/80"
           >
             Sign in
           </Link>
           <Link
             href="/signup"
+            prefetch={false}
             className="min-h-11 min-w-[7rem] border border-transparent bg-accent px-5 py-2.5 text-center text-xs font-medium uppercase tracking-wider text-accent-foreground transition-opacity hover:opacity-90"
           >
             Start free
@@ -107,6 +109,7 @@ export function LandingNavbar() {
           ))}
           <Link
             href="/login"
+            prefetch={false}
             className="py-4 text-sm font-medium uppercase tracking-widest text-white/50"
             onClick={() => setOpen(false)}
           >
@@ -114,6 +117,7 @@ export function LandingNavbar() {
           </Link>
           <Link
             href="/signup"
+            prefetch={false}
             className="mt-4 min-h-11 border border-transparent bg-accent py-3 text-center text-sm font-medium uppercase tracking-wider text-accent-foreground"
             onClick={() => setOpen(false)}
           >
