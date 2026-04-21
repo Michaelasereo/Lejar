@@ -27,15 +27,24 @@ export default async function AppLayout({
   }
 
   const showAdminNav = isAdminUserId(user.id);
-  const pendingGroupInviteCount = await prisma.groupJarMember.count({
-    where: {
-      status: "PENDING",
-      OR: [
-        { userId: user.id },
-        ...(user.email ? [{ email: user.email }] : []),
-      ],
-    },
-  });
+  let pendingGroupInviteCount = 0;
+  try {
+    pendingGroupInviteCount = await prisma.groupJarMember.count({
+      where: {
+        status: "PENDING",
+        OR: [
+          { userId: user.id },
+          ...(user.email ? [{ email: user.email }] : []),
+        ],
+      },
+    });
+  } catch (error) {
+    // Keep app pages available even if group-jar tables are not migrated yet.
+    console.error("[app/layout] pending group invite count failed", {
+      userId: user.id,
+      error: error instanceof Error ? error.message : error,
+    });
+  }
 
   return (
     <AppShell
