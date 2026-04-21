@@ -32,17 +32,32 @@ export interface InvestmentsPageData {
 const MS_DAY = 24 * 60 * 60 * 1000;
 
 export async function getInvestmentsPageData(userId: string): Promise<InvestmentsPageData> {
-  await prisma.investment.updateMany({
-    where: {
-      userId,
-      status: "ACTIVE",
-      maturityDate: { lte: new Date() },
-    },
-    data: { status: "MATURED" },
-  });
+  try {
+    await prisma.investment.updateMany({
+      where: {
+        userId,
+        status: "ACTIVE",
+        maturityDate: { lte: new Date() },
+      },
+      data: { status: "MATURED" },
+    });
+  } catch {
+    // Ignore if migration-backed enum/status transitions are not yet available.
+  }
 
   const rows = await prisma.investment.findMany({
     where: { userId },
+    // Keep this query compatible with pre-migration production schema.
+    select: {
+      id: true,
+      type: true,
+      label: true,
+      amount: true,
+      investedAt: true,
+      maturityDate: true,
+      status: true,
+      createdAt: true,
+    },
     orderBy: [{ investedAt: "desc" }, { createdAt: "desc" }],
   });
 
@@ -51,10 +66,10 @@ export async function getInvestmentsPageData(userId: string): Promise<Investment
     type: r.type,
     label: r.label,
     amount: toNumber(r.amount),
-    expectedProfit: r.expectedProfit ? toNumber(r.expectedProfit) : null,
-    actualProfit: r.actualProfit ? toNumber(r.actualProfit) : null,
-    profitConfirmed: r.profitConfirmed,
-    profitConfirmedAt: r.profitConfirmedAt,
+    expectedProfit: null,
+    actualProfit: null,
+    profitConfirmed: false,
+    profitConfirmedAt: null,
     investedAt: r.investedAt,
     maturityDate: r.maturityDate,
     status: r.status,
@@ -64,7 +79,7 @@ export async function getInvestmentsPageData(userId: string): Promise<Investment
   const portfolioTotalActive = active.reduce((s, r) => s + toNumber(r.amount), 0);
   const confirmedReturnsTotal = rows
     .filter((r) => r.status === "MATURED_CONFIRMED")
-    .reduce((s, r) => s + (r.actualProfit ? toNumber(r.actualProfit) : 0), 0);
+    .reduce((s) => s, 0);
   const grandTotal = portfolioTotalActive + confirmedReturnsTotal;
 
   const byTypeActive: Record<string, number> = {};

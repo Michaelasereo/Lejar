@@ -117,6 +117,15 @@ export async function getDashboardData(
       }),
       prisma.investment.findMany({
         where: { userId, status: "ACTIVE" },
+        // Select only legacy-safe columns so dashboard still works before
+        // production migrations add new investment fields.
+        select: {
+          id: true,
+          type: true,
+          label: true,
+          amount: true,
+          maturityDate: true,
+        },
       }),
     ]);
 
