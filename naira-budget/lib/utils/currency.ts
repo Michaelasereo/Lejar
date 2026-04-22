@@ -25,3 +25,29 @@ export function recalculateAllocations(
     amount: percentageToAmount(a.percentage, newTotalIncome),
   }));
 }
+
+export function balanceAmountsToTotal<T extends { amount: number }>(
+  items: T[],
+  total: number,
+): T[] {
+  if (items.length === 0) return [];
+  const target = Math.round(total);
+  const normalized = items.map((item) => ({
+    ...item,
+    amount: Math.max(0, Math.round(item.amount)),
+  }));
+  const current = normalized.reduce((sum, item) => sum + item.amount, 0);
+  const drift = target - current;
+  if (drift === 0) return normalized;
+
+  let adjustIndex = 0;
+  for (let i = 1; i < normalized.length; i += 1) {
+    if (normalized[i]!.amount > normalized[adjustIndex]!.amount) {
+      adjustIndex = i;
+    }
+  }
+
+  const adjusted = normalized[adjustIndex]!;
+  adjusted.amount = Math.max(0, adjusted.amount + drift);
+  return normalized;
+}

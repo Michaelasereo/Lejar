@@ -408,7 +408,10 @@ export function NetWorthPanel({
         <p className="text-xs uppercase tracking-widest text-white/30">This month&apos;s change</p>
         <p className="mt-1 text-xs text-white/40">What moved your net worth this month</p>
         <ChangeRow label="Monthly savings" value={monthlyChange.monthlySavings} />
-        <ChangeRow label="Unspent carryover" value={monthlyChange.unspentCarryover} />
+        <ChangeRow
+          label="Unspent carryover (included in monthly savings)"
+          value={monthlyChange.unspentCarryover}
+        />
         <ChangeRow label="Investment growth" value={monthlyChange.investmentGrowth} />
         <ChangeRow label="Jar contributions" value={monthlyChange.jarContributions} />
         <ChangeRow label="Confirmed returns" value={monthlyChange.confirmedReturns} />

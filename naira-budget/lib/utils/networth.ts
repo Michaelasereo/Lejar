@@ -237,7 +237,6 @@ export async function monthlyChangeBreakdown(
   const newLiabilities = 0;
   const netChange =
     monthlySavings +
-    carryover +
     investmentGrowth +
     jarContributions +
     confirmedReturns -

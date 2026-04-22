@@ -6,6 +6,7 @@ import { Trash2 } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
 import {
   amountToPercentage,
+  balanceAmountsToTotal,
   formatNaira,
   percentageToAmount,
 } from "@/lib/utils/currency";
@@ -297,13 +298,28 @@ export function OnboardingWizard() {
     setSubmitError(null);
     setSubmitting(true);
     try {
+      const incomeSources = state.income
+        .filter((r) => r.label.trim() !== "" && parseAmount(r.amount) > 0)
+        .map((r) => ({
+          label: r.label.trim(),
+          amount: Math.round(parseAmount(r.amount)),
+        }));
+      const totalIncomeForSubmit = incomeSources.reduce(
+        (sum, row) => sum + row.amount,
+        0,
+      );
+      const balancedBuckets = balanceAmountsToTotal(
+        state.buckets.map((b) => ({
+          name: b.name.trim(),
+          color: b.color,
+          percentage: bucketPercentage(b, totalIncomeForSubmit),
+          amount: bucketNaira(b, totalIncomeForSubmit),
+        })),
+        totalIncomeForSubmit,
+      );
+
       const payload = {
-        incomeSources: state.income
-          .filter((r) => r.label.trim() !== "" && parseAmount(r.amount) > 0)
-          .map((r) => ({
-            label: r.label.trim(),
-            amount: parseAmount(r.amount),
-          })),
+        incomeSources,
         rentSkipped: state.rentSkipped,
         rent:
           state.rentSkipped || parseAmount(state.rentAnnual) <= 0
@@ -312,12 +328,7 @@ export function OnboardingWizard() {
                 annualAmount: parseAmount(state.rentAnnual),
                 nextDueDate: new Date(state.rentDueDate).toISOString(),
               },
-        buckets: state.buckets.map((b) => ({
-          name: b.name.trim(),
-          color: b.color,
-          percentage: bucketPercentage(b, totalIncome),
-          amount: bucketNaira(b, totalIncome),
-        })),
+        buckets: balancedBuckets,
       };
 
       const res = await fetch("/api/onboarding", {

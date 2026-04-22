@@ -3,6 +3,7 @@ import { startOfMonth } from "date-fns";
 import { createServerClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { onboardingApiSchema } from "@/lib/validations/onboarding";
+import { balanceAmountsToTotal } from "@/lib/utils/currency";
 import { Prisma } from "@prisma/client";
 
 function sumIncome(sources: { amount: number }[]): number {
@@ -44,22 +45,36 @@ export async function POST(req: NextRequest) {
   }
 
   const body = parsed.data;
-  const incomeTotal = sumIncome(body.incomeSources);
-  const bucketTotal = sumBuckets(body.buckets);
+  const rawIncomeTotal = sumIncome(body.incomeSources);
+  const rawBucketTotal = sumBuckets(body.buckets);
+  const allowedDelta = Math.max(1, body.buckets.length);
 
-  if (incomeTotal <= 0) {
+  if (rawIncomeTotal <= 0) {
     return NextResponse.json(
       { error: "Total income must be greater than zero" },
       { status: 400 },
     );
   }
 
-  if (Math.abs(incomeTotal - bucketTotal) > 0.01) {
+  if (Math.abs(rawIncomeTotal - rawBucketTotal) > allowedDelta) {
     return NextResponse.json(
       { error: "Bucket allocations must equal total income" },
       { status: 400 },
     );
   }
+
+  const normalizedIncomeSources = body.incomeSources.map((row) => ({
+    ...row,
+    amount: Math.max(0, Math.round(row.amount)),
+  }));
+  const incomeTotal = sumIncome(normalizedIncomeSources);
+  const normalizedBuckets = balanceAmountsToTotal(
+    body.buckets.map((bucket) => ({
+      ...bucket,
+      amount: Math.max(0, Math.round(bucket.amount)),
+    })),
+    incomeTotal,
+  );
 
   if (!body.rentSkipped && body.rent) {
     const due = new Date(body.rent.nextDueDate);
@@ -79,7 +94,7 @@ export async function POST(req: NextRequest) {
       });
 
       await tx.incomeSource.createMany({
-        data: body.incomeSources.map((row) => ({
+        data: normalizedIncomeSources.map((row) => ({
           userId,
           label: row.label,
           amountMonthly: new Prisma.Decimal(row.amount),
@@ -89,8 +104,8 @@ export async function POST(req: NextRequest) {
         })),
       });
 
-      for (let i = 0; i < body.buckets.length; i += 1) {
-        const b = body.buckets[i]!;
+      for (let i = 0; i < normalizedBuckets.length; i += 1) {
+        const b = normalizedBuckets[i]!;
         const bucket = await tx.bucket.create({
           data: {
             userId,
