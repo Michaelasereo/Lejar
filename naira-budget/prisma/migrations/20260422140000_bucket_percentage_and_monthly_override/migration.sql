@@ -30,10 +30,11 @@ WITH income AS (
 bucket_alloc AS (
   SELECT
     b.id AS bucket_id,
+    b."userId" AS user_id,
     COALESCE(SUM(ba."percentage"), 0) AS allocation_percentage
   FROM "Bucket" b
   LEFT JOIN "BucketAllocation" ba ON ba."bucketId" = b.id
-  GROUP BY b.id
+  GROUP BY b.id, b."userId"
 )
 UPDATE "Bucket" b
 SET "percentage" = CASE
@@ -42,5 +43,5 @@ SET "percentage" = CASE
   ELSE 0
 END
 FROM bucket_alloc ba
-LEFT JOIN income i ON i."userId" = b."userId"
+LEFT JOIN income i ON i."userId" = ba.user_id
 WHERE b.id = ba.bucket_id;
