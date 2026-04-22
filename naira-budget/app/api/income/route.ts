@@ -6,14 +6,15 @@ import { recalculateAllocationAmountsForUser } from "@/lib/income/recalculate-al
 import { prisma } from "@/lib/prisma";
 import { refreshSnapshotsForMonths } from "@/lib/utils/analytics";
 import { formatMonthParam, getMonthsBetween, parseMonthParam } from "@/lib/utils/dates";
-import { getCurrentIncome, getIncomeForMonth } from "@/lib/utils/income";
+import { getCurrentIncome, getIncomeActiveForMonth, getIncomeForMonth } from "@/lib/utils/income";
 import { createIncomeSchema } from "@/lib/validations/income-api";
 
 export async function GET() {
   const auth = await requireUser();
   if (!auth.user) return auth.error;
 
-  const rows = await getCurrentIncome(auth.user.id);
+  const now = new Date();
+  const rows = await getIncomeActiveForMonth(auth.user.id, now.getFullYear(), now.getMonth() + 1);
   return NextResponse.json({
     income: rows.map((row) => ({
       id: row.id,

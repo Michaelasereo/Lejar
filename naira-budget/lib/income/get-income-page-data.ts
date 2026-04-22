@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { toNumber } from "@/lib/income/money";
 import { amountToPercentage } from "@/lib/utils/currency";
-import { getCurrentIncome } from "@/lib/utils/income";
+import { getIncomeActiveForMonth } from "@/lib/utils/income";
 
 export interface IncomePageData {
   incomeSources: Array<{
@@ -34,7 +34,12 @@ export interface IncomePageData {
 }
 
 export async function getIncomePageData(userId: string): Promise<IncomePageData> {
-  const incomeSources = await getCurrentIncome(userId);
+  const now = new Date();
+  const incomeSources = await getIncomeActiveForMonth(
+    userId,
+    now.getFullYear(),
+    now.getMonth() + 1,
+  );
   const totalIncome = incomeSources.reduce((s, r) => s + toNumber(r.amountMonthly), 0);
 
   const allocationsNeedingMigration = await prisma.bucketAllocation.findMany({
