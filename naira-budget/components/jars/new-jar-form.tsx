@@ -32,7 +32,7 @@ export function NewJarForm() {
       targetAmount: 100000,
       monthlyTarget: null,
       dueDate: undefined,
-      color: "#16a34a",
+      color: "#7C63FD",
       category: "OTHER",
       notes: "",
       isPinned: false,

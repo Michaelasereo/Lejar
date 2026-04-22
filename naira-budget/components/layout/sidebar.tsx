@@ -16,6 +16,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { BrandLogo } from "@/components/brand-logo";
 import { cn } from "@/lib/utils/cn";
 
 type NavItem = {
@@ -70,10 +71,7 @@ export function Sidebar({ userEmail, showAdminNav = false }: SidebarProps) {
     <aside className="fixed inset-y-0 left-0 z-40 hidden w-56 flex-col border-r border-white/5 bg-surface md:flex">
       <div className="border-b border-white/5 px-5 py-6">
         <Link href="/app/dashboard" className="flex items-center gap-2">
-          <span className="text-lg font-medium text-accent">₦B</span>
-          <span className="text-sm font-medium tracking-tight text-foreground">
-            Naira Budget
-          </span>
+          <BrandLogo className="h-6" />
         </Link>
       </div>
       <nav className="flex flex-1 flex-col gap-0.5 px-3 py-4" aria-label="Main">
@@ -87,7 +85,7 @@ export function Sidebar({ userEmail, showAdminNav = false }: SidebarProps) {
               className={cn(
                 "flex items-center gap-3 rounded-none border-l-2 py-2.5 pl-3 text-sm transition-colors",
                 active
-                  ? "border-green-500 bg-white/5 text-foreground"
+                  ? "border-accent bg-white/5 text-foreground"
                   : "border-transparent text-white/40 hover:bg-white/[0.03] hover:text-white/70",
               )}
             >

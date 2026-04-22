@@ -181,7 +181,7 @@ export function GroceryClient({ data }: GroceryClientProps) {
                       ) : null}
                     </span>
                     {item.movedToExpenses && (
-                      <span className="border border-green-500/30 bg-green-500/10 px-1.5 py-0.5 text-[10px] text-green-400">
+                      <span className="border border-accent/40 bg-accent/10 px-1.5 py-0.5 text-[10px] text-accent">
                         Already logged
                       </span>
                     )}

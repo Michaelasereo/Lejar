@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Menu, X } from "lucide-react";
+import { BrandLogo } from "@/components/brand-logo";
 import { cn } from "@/lib/utils/cn";
 
 const navLinks = [
@@ -29,10 +30,7 @@ export function LandingNavbar() {
     <header className="fixed left-0 right-0 top-0 z-50 border-b border-white/5 bg-background/75 backdrop-blur-sm">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 md:px-8">
         <Link href="/" className="flex items-center gap-2">
-          <span className="text-lg font-medium text-accent">₦B</span>
-          <span className="text-sm font-medium tracking-tight text-foreground">
-            Naira Budget
-          </span>
+          <BrandLogo className="h-6" />
         </Link>
 
         <nav

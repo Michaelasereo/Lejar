@@ -116,7 +116,7 @@ export function NetWorthPanel({
           {delta == null ? (
             <span className="text-white/50">First month - keep going!</span>
           ) : (
-            <span className={delta >= 0 ? "text-green-400" : "text-red-400"}>
+            <span className={delta >= 0 ? "text-accent" : "text-red-400"}>
               {delta >= 0 ? <TrendingUp className="mr-1 inline h-4 w-4" /> : <TrendingDown className="mr-1 inline h-4 w-4" />}
               {formatNaira(Math.abs(delta))} {delta >= 0 ? "from last month" : "down from last month"}
             </span>
@@ -129,7 +129,7 @@ export function NetWorthPanel({
         <BreakdownCard label="Cumulative savings" value={netWorthData.cumulativeSavings} sub="Across previous months" icon={<PiggyBank className="h-4 w-4 text-white/30" />} />
         <BreakdownCard label="Investment portfolio" value={netWorthData.investmentPortfolio} sub="T-bills · Risevest · NGX · PiggyVest" icon={<TrendingUp className="h-4 w-4 text-white/30" />} />
         <BreakdownCard label="Savings jars" value={netWorthData.jarsTotal} sub="Individual and group jars" icon={<Target className="h-4 w-4 text-white/30" />} />
-        <BreakdownCard label="Confirmed returns" value={netWorthData.confirmedReturns} sub="Matured confirmed profits" icon={<CheckCircle className="h-4 w-4 text-green-400/70" />} valueClass="text-green-400" />
+        <BreakdownCard label="Confirmed returns" value={netWorthData.confirmedReturns} sub="Matured confirmed profits" icon={<CheckCircle className="h-4 w-4 text-accent/80" />} valueClass="text-accent" />
       </section>
 
       <div className="flex items-center justify-between border-t border-white/10 pt-3 text-sm">
@@ -149,8 +149,8 @@ export function NetWorthPanel({
           </button>
         </div>
         {displayedLiability <= 0 ? (
-          <div className="border border-green-500/20 bg-green-500/5 p-4">
-            <p className="text-sm text-green-400">Debt free 🎉</p>
+          <div className="border border-accent/30 bg-accent/10 p-4">
+            <p className="text-sm text-accent">Debt free 🎉</p>
             <p className="text-xs text-white/40">You have no logged liabilities</p>
           </div>
         ) : (
@@ -185,7 +185,7 @@ export function NetWorthPanel({
       <section className="border border-white/10 bg-white/[0.03] p-4">
         <div className="flex items-center justify-between">
           <p className="text-xs uppercase tracking-widest text-white/30">NET WORTH</p>
-          <p className={`text-2xl font-medium ${displayedNetWorth >= 0 ? "text-green-400" : "text-red-400"}`}>
+          <p className={`text-2xl font-medium ${displayedNetWorth >= 0 ? "text-accent" : "text-red-400"}`}>
             {formatNaira(displayedNetWorth)}
           </p>
         </div>
@@ -200,14 +200,14 @@ export function NetWorthPanel({
               <XAxis dataKey="month" tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 11 }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 10 }} axisLine={false} tickLine={false} />
               <Tooltip formatter={(v) => formatNaira(Number(v))} />
-              <Area dataKey="netWorth" stroke="#16a34a" fill="rgba(22,163,74,0.15)" strokeWidth={2} />
+              <Area dataKey="netWorth" stroke="#7C63FD" fill="rgba(124,99,253,0.15)" strokeWidth={2} />
               {milestones.map((m) => (
                 <ReferenceDot
                   key={`${m.value}-${m.month}`}
                   x={m.month}
                   y={m.netWorth}
                   r={4}
-                  fill="#16a34a"
+                  fill="#7C63FD"
                   stroke="#fff"
                   label={{ value: `Hit ₦${Math.round(m.value / 1_000_000)}M`, fill: "rgba(255,255,255,0.35)", fontSize: 10, position: "top" }}
                 />
@@ -239,7 +239,7 @@ export function NetWorthPanel({
       <section className="border border-white/8 bg-white/[0.03] p-4">
         <p className="text-xs uppercase tracking-widest text-white/30">Your savings rate vs Nigeria</p>
         <div className="mt-3 space-y-3 text-xs">
-          <RateRow label="You" value={savingsRate} barClass="bg-green-500" />
+          <RateRow label="You" value={savingsRate} barClass="bg-accent" />
           <RateRow label="Good saver" value={20} barClass="bg-white/30" />
           <RateRow label="Nigerian average" value={5} barClass="bg-white/10" />
         </div>
@@ -249,7 +249,7 @@ export function NetWorthPanel({
       </section>
 
       {unspentCarryover > 0 ? (
-        <div className="border border-green-500/20 bg-green-500/5 px-3 py-2 text-xs text-white/70">
+        <div className="border border-accent/30 bg-accent/10 px-3 py-2 text-xs text-white/70">
           You have {formatNaira(unspentCarryover)} unspent from your spending budget this month.
         </div>
       ) : null}
@@ -283,7 +283,7 @@ function BreakdownCard({
 }
 
 function ChangeRow({ label, value, strong = false }: { label: string; value: number; strong?: boolean }) {
-  const tone = value === 0 ? "text-white/25" : value > 0 ? "text-green-400" : "text-red-400";
+  const tone = value === 0 ? "text-white/25" : value > 0 ? "text-accent" : "text-red-400";
   return (
     <div className={`mt-2 flex justify-between text-sm ${strong ? "font-medium" : ""}`}>
       <span className={value === 0 ? "text-white/30" : "text-white/60"}>{label}</span>

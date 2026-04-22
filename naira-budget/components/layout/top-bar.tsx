@@ -86,7 +86,7 @@ export function TopBar({ userEmail }: TopBarProps) {
             <Bell className="h-5 w-5" strokeWidth={1.5} />
           </button>
           <div
-            className="flex h-9 w-9 items-center justify-center bg-green-900 text-xs font-medium text-green-400"
+            className="flex h-9 w-9 items-center justify-center bg-accent/20 text-xs font-medium text-accent"
             title={userEmail}
           >
             {initialsFromEmail(userEmail)}

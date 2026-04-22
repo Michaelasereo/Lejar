@@ -56,9 +56,9 @@ export function InvestmentsClient({ data }: InvestmentsClientProps) {
             {formatNaira(data.portfolioTotalActive)}
           </p>
         </article>
-        <article className="rounded-none border border-green-500/20 bg-green-500/5 p-4">
-          <p className="text-xs uppercase tracking-widest text-green-400/80">Confirmed returns</p>
-          <p className="mt-2 text-2xl font-medium tabular-nums text-green-400">
+        <article className="rounded-none border border-accent/30 bg-accent/10 p-4">
+          <p className="text-xs uppercase tracking-widest text-accent/90">Confirmed returns</p>
+          <p className="mt-2 text-2xl font-medium tabular-nums text-accent">
             {formatNaira(data.confirmedReturnsTotal)}
           </p>
         </article>
@@ -187,7 +187,7 @@ export function InvestmentsClient({ data }: InvestmentsClientProps) {
                       <p className="text-xs text-white/50">
                         Amount invested: {formatNaira(row.amount)}
                       </p>
-                      <p className="text-xs text-green-400">
+                      <p className="text-xs text-accent">
                         Actual profit confirmed: {formatNaira(row.actualProfit ?? 0)}
                       </p>
                       <p className="text-sm font-medium text-foreground">
@@ -201,7 +201,7 @@ export function InvestmentsClient({ data }: InvestmentsClientProps) {
                         className={cn(
                           "mt-1 inline-flex border px-2 py-0.5 text-[10px] uppercase tracking-wide",
                           row.status === "MATURED_CONFIRMED"
-                            ? "border-green-500/30 text-green-400"
+                            ? "border-accent/40 text-accent"
                             : "border-white/15 text-white/50",
                         )}
                       >

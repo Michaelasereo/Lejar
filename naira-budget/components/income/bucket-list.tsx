@@ -74,7 +74,7 @@ export function BucketList({
     toast.success("Bucket added");
     onAddDraftChange({
       name: "",
-      color: BUCKET_COLORS[0] ?? "#16a34a",
+      color: BUCKET_COLORS[0] ?? "#7C63FD",
       amount: "",
       percentage: "",
     });

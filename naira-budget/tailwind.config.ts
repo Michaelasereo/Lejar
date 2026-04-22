@@ -18,8 +18,8 @@ export default {
         foreground: "#fafafa",
         muted: "rgba(250, 250, 250, 0.5)",
         accent: {
-          DEFAULT: "#16a34a",
-          foreground: "#0a0a0a",
+          DEFAULT: "#7C63FD",
+          foreground: "#ffffff",
         },
         "border-subtle": "rgba(255, 255, 255, 0.05)",
         border: "rgba(255, 255, 255, 0.1)",

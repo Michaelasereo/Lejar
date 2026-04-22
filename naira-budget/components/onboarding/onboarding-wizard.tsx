@@ -15,7 +15,7 @@ const STORAGE_KEY = "nb-onboarding-v1";
 const STEPS = 4;
 
 const BUCKET_COLORS = [
-  "#16a34a",
+  "#7C63FD",
   "#2563eb",
   "#a855f7",
   "#f97316",

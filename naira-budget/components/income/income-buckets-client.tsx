@@ -24,7 +24,7 @@ export function IncomeBucketsClient({ initialData }: IncomeBucketsClientProps) {
     percentage: string;
   }>({
     name: "",
-    color: BUCKET_COLORS[0] ?? "#16a34a",
+    color: BUCKET_COLORS[0] ?? "#7C63FD",
     amount: "",
     percentage: "",
   });
@@ -86,7 +86,7 @@ export function IncomeBucketsClient({ initialData }: IncomeBucketsClientProps) {
           }
           setAddBucket({
             name: "",
-            color: BUCKET_COLORS[0] ?? "#16a34a",
+            color: BUCKET_COLORS[0] ?? "#7C63FD",
             amount: "",
             percentage: "",
           });

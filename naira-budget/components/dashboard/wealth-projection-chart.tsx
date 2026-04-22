@@ -53,7 +53,7 @@ export function WealthProjectionChart({ data }: WealthProjectionChartProps) {
               );
             }}
           />
-          <Bar dataKey="value" fill="#16a34a" radius={[0, 0, 0, 0]} maxBarSize={48} />
+          <Bar dataKey="value" fill="#7C63FD" radius={[0, 0, 0, 0]} maxBarSize={48} />
         </BarChart>
       </ResponsiveContainer>
     </div>

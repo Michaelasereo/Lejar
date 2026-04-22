@@ -164,7 +164,7 @@ export function GroceryItemRow({ row, onSaved }: GroceryItemRowProps) {
                 <span className="text-amber-400/90">{row.isPurchased ? "- fill price" : "Price later"}</span>
               )}
               {row.movedToExpenses && (
-                <span className="border border-green-500/30 bg-green-500/10 px-2 py-0.5 text-[10px] uppercase tracking-wide text-green-400">
+                <span className="border border-accent/40 bg-accent/10 px-2 py-0.5 text-[10px] uppercase tracking-wide text-accent">
                   Logged
                 </span>
               )}

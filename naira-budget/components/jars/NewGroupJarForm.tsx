@@ -12,7 +12,7 @@ export function NewGroupJarForm() {
   const [emoji, setEmoji] = useState("🏦");
   const [targetAmount, setTargetAmount] = useState("");
   const [dueDate, setDueDate] = useState("");
-  const [color, setColor] = useState("#16a34a");
+  const [color, setColor] = useState("#7C63FD");
   const [notes, setNotes] = useState("");
   const [emails, setEmails] = useState("");
   const [submitting, setSubmitting] = useState(false);

@@ -4,7 +4,7 @@ export function HeroSection() {
   return (
     <section className="relative flex min-h-screen flex-col items-center justify-center px-4 pb-24 pt-28 md:px-8">
       <div
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_50%_at_50%_35%,rgba(22,163,74,0.045),transparent_55%)]"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_50%_at_50%_35%,rgba(124,99,253,0.10),transparent_55%)]"
         aria-hidden
       />
       <div className="relative z-[1] mx-auto max-w-4xl text-center">

@@ -243,7 +243,7 @@ export function InvestmentRow({ row, onSaved }: InvestmentRowProps) {
               </div>
             )}
             {row.actualProfit !== null && (
-              <p className="mt-1 text-xs tabular-nums text-green-400">
+              <p className="mt-1 text-xs tabular-nums text-accent">
                 Actual profit confirmed: {formatNaira(row.actualProfit)}
               </p>
             )}

@@ -65,7 +65,7 @@ export function DashboardView({ data }: DashboardViewProps) {
       {data.unspentCarryover > 0 &&
       new Date().getDate() >= 28 &&
       new Date().getDate() <= 31 ? (
-        <div className="mt-4 border border-green-500/20 bg-green-500/5 p-3 text-sm text-white/70">
+        <div className="mt-4 border border-accent/30 bg-accent/10 p-3 text-sm text-white/70">
           <p>
             You have {formatNaira(data.unspentCarryover)} unspent from your spending budget this
             month. It will be added to your net worth at month end.
@@ -368,7 +368,7 @@ function PinnedJarSummary({
   const r = 70;
   const c = 2 * Math.PI * r;
   const dash = (jar.progressPercent / 100) * c;
-  const stroke = jar.color || "#16a34a";
+  const stroke = jar.color || "#7C63FD";
 
   return (
     <Link
@@ -419,9 +419,9 @@ function PinnedJarSummary({
         className={cn(
           "mt-3 inline-block border px-3 py-1 text-xs font-medium uppercase tracking-wider",
           jar.isCompleted
-            ? "border-green-500/40 bg-green-500/10 text-green-400"
+            ? "border-accent/40 bg-accent/10 text-accent"
             : jar.onTrack
-              ? "border-green-500/40 bg-green-500/10 text-green-400"
+              ? "border-accent/40 bg-accent/10 text-accent"
               : "border-amber-500/40 bg-amber-500/10 text-amber-400",
         )}
       >
@@ -457,7 +457,7 @@ function RentJarPanel({
             cy="80"
             r={r}
             fill="none"
-            stroke="#16a34a"
+            stroke="#7C63FD"
             strokeWidth="10"
             strokeLinecap="round"
             strokeDasharray={`${dash} ${c}`}
@@ -481,7 +481,7 @@ function RentJarPanel({
         className={cn(
           "mt-3 inline-block border px-3 py-1 text-xs font-medium uppercase tracking-wider",
           rent.onTrack
-            ? "border-green-500/40 bg-green-500/10 text-green-400"
+            ? "border-accent/40 bg-accent/10 text-accent"
             : "border-amber-500/40 bg-amber-500/10 text-amber-400",
         )}
       >

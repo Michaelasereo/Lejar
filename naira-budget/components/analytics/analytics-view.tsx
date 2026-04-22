@@ -412,8 +412,8 @@ export function AnalyticsView() {
                   <AreaChart data={data.cumulativeSavings} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                     <defs>
                       <linearGradient id="cumGreen" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#16a34a" stopOpacity={0.35} />
-                        <stop offset="100%" stopColor="#16a34a" stopOpacity={0} />
+                        <stop offset="0%" stopColor="#7C63FD" stopOpacity={0.35} />
+                        <stop offset="100%" stopColor="#7C63FD" stopOpacity={0} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid stroke={GRID} vertical={false} />
@@ -427,7 +427,7 @@ export function AnalyticsView() {
                         fontSize: 12,
                       }}
                     />
-                    <Area type="monotone" dataKey="saved" stroke="#16a34a" fill="url(#cumGreen)" strokeWidth={2} />
+                    <Area type="monotone" dataKey="saved" stroke="#7C63FD" fill="url(#cumGreen)" strokeWidth={2} />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
@@ -460,7 +460,7 @@ export function AnalyticsView() {
                       fontSize: 12,
                     }}
                   />
-                  <Bar dataKey="rate" fill="#16a34a" radius={[0, 0, 0, 0]} maxBarSize={40} />
+                  <Bar dataKey="rate" fill="#7C63FD" radius={[0, 0, 0, 0]} maxBarSize={40} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -488,7 +488,7 @@ export function AnalyticsView() {
                     }}
                   />
                   <Legend />
-                  <Bar dataKey="tbills" stackId="a" fill="#16a34a" name="T-bills" />
+                  <Bar dataKey="tbills" stackId="a" fill="#7C63FD" name="T-bills" />
                   <Bar dataKey="risevest" stackId="a" fill="#3b82f6" name="Risevest" />
                   <Bar dataKey="piggyvest" stackId="a" fill="#a855f7" name="PiggyVest" />
                   <Bar dataKey="ngx" stackId="a" fill="#e879f9" name="NGX" />
@@ -591,7 +591,7 @@ function Heatmap({
               title={`Day ${c.day}: ${formatNaira(c.amount)}`}
               className="aspect-square min-h-[2rem] border border-white/5 text-[10px] text-white/40"
               style={{
-                backgroundColor: `rgba(22,163,74,${0.15 + intensity * 0.65})`,
+                backgroundColor: `rgba(124,99,253,${0.15 + intensity * 0.65})`,
               }}
             >
               <span className="flex h-full items-center justify-center tabular-nums">

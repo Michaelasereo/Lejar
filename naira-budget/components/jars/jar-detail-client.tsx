@@ -242,7 +242,7 @@ export function JarDetailClient({ jar, contributions: initialContribs }: JarDeta
         <div
           className={cn(
             "relative h-52 w-52",
-            percent >= 100 && "drop-shadow-[0_0_20px_rgba(22,163,74,0.45)]",
+            percent >= 100 && "drop-shadow-[0_0_20px_rgba(124,99,253,0.45)]",
           )}
         >
           <svg
