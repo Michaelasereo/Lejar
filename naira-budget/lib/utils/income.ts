@@ -41,11 +41,16 @@ export async function isIncomeOverridden(userId: string, monthKey: string): Prom
 }
 
 export async function getCurrentIncome(userId: string) {
+  const now = new Date();
+  const monthStart = startOfMonth(now);
+  const monthEnd = endOfMonth(now);
+
   return prisma.incomeSource.findMany({
     where: {
       userId,
       isActive: true,
-      effectiveTo: null,
+      effectiveFrom: { lte: monthEnd },
+      OR: [{ effectiveTo: null }, { effectiveTo: { gte: monthStart } }],
     },
     orderBy: { effectiveFrom: "asc" },
   });
