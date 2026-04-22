@@ -4,6 +4,8 @@ import { Prisma } from "@prisma/client";
 import { requireUser } from "@/lib/auth/require-user";
 import { recalculateAllocationAmountsForUser } from "@/lib/income/recalculate-allocation-amounts";
 import { prisma } from "@/lib/prisma";
+import { refreshSnapshotsForMonths } from "@/lib/utils/analytics";
+import { getMonthsBetween } from "@/lib/utils/dates";
 import { getCurrentIncome } from "@/lib/utils/income";
 import { createIncomeSchema } from "@/lib/validations/income-api";
 
@@ -51,6 +53,14 @@ export async function POST(req: NextRequest) {
         isActive: true,
       },
     });
+    const now = new Date();
+    const monthsToRefresh = getMonthsBetween(
+      row.effectiveFrom.getFullYear(),
+      row.effectiveFrom.getMonth() + 1,
+      now.getFullYear(),
+      now.getMonth() + 1,
+    );
+    await refreshSnapshotsForMonths(prisma, auth.user.id, monthsToRefresh);
     const recalc = await recalculateAllocationAmountsForUser(auth.user.id);
 
     return NextResponse.json(

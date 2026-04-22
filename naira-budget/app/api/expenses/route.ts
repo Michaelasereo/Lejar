@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { requireUser } from "@/lib/auth/require-user";
 import { dateInputToDate } from "@/lib/investments/dates";
 import { prisma } from "@/lib/prisma";
+import { refreshSnapshotsForMonths } from "@/lib/utils/analytics";
 import { evaluateStreaks } from "@/lib/utils/streaks";
 import { createExpenseSchema } from "@/lib/validations/expense";
 
@@ -50,6 +51,9 @@ export async function POST(req: NextRequest) {
         occurredAt,
       },
     });
+    await refreshSnapshotsForMonths(prisma, auth.user.id, [
+      { year: row.occurredAt.getFullYear(), month: row.occurredAt.getMonth() + 1 },
+    ]);
     await evaluateStreaks(auth.user.id);
 
     return NextResponse.json(

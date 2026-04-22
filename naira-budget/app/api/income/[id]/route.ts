@@ -3,6 +3,8 @@ import { Prisma } from "@prisma/client";
 import { requireUser } from "@/lib/auth/require-user";
 import { recalculateAllocationAmountsForUser } from "@/lib/income/recalculate-allocation-amounts";
 import { prisma } from "@/lib/prisma";
+import { refreshSnapshotsForMonths } from "@/lib/utils/analytics";
+import { getMonthsBetween } from "@/lib/utils/dates";
 import { backdateIncomeChange, updateIncomeWithHistory } from "@/lib/utils/income";
 import { updateIncomeSchema } from "@/lib/validations/income-api";
 
@@ -43,6 +45,14 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
         where: { id },
         data,
       });
+      const now = new Date();
+      const monthsToRefresh = getMonthsBetween(
+        existing.effectiveFrom.getFullYear(),
+        existing.effectiveFrom.getMonth() + 1,
+        now.getFullYear(),
+        now.getMonth() + 1,
+      );
+      await refreshSnapshotsForMonths(prisma, auth.user.id, monthsToRefresh);
       return NextResponse.json({
         id: row.id,
         label: row.label,
@@ -74,6 +84,15 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
         parsed.data.effectiveMonth,
       );
     }
+    const [startYearStr, startMonthStr] = parsed.data.effectiveMonth.split("-");
+    const now = new Date();
+    const monthsToRefresh = getMonthsBetween(
+      Number(startYearStr),
+      Number(startMonthStr),
+      now.getFullYear(),
+      now.getMonth() + 1,
+    );
+    await refreshSnapshotsForMonths(prisma, auth.user.id, monthsToRefresh);
 
     const recalc = await recalculateAllocationAmountsForUser(auth.user.id);
     return NextResponse.json({
@@ -103,6 +122,14 @@ export async function DELETE(_req: NextRequest, context: RouteContext) {
 
   try {
     await prisma.incomeSource.delete({ where: { id } });
+    const now = new Date();
+    const monthsToRefresh = getMonthsBetween(
+      existing.effectiveFrom.getFullYear(),
+      existing.effectiveFrom.getMonth() + 1,
+      now.getFullYear(),
+      now.getMonth() + 1,
+    );
+    await refreshSnapshotsForMonths(prisma, auth.user.id, monthsToRefresh);
     const recalc = await recalculateAllocationAmountsForUser(auth.user.id);
     return NextResponse.json({ ok: true, allocationsRecalculated: recalc.updatedCount > 0 });
   } catch (e) {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth/require-user";
 import { prisma } from "@/lib/prisma";
+import { refreshSnapshotsForMonths } from "@/lib/utils/analytics";
 
 type RouteContext = { params: { monthKey: string } };
 
@@ -21,10 +22,7 @@ export async function DELETE(_req: NextRequest, context: RouteContext) {
     where: { userId: auth.user.id, monthKey },
   });
 
-  await prisma.monthlySnapshot.updateMany({
-    where: { userId: auth.user.id, year, month },
-    data: { needsRecalculation: true },
-  });
+  await refreshSnapshotsForMonths(prisma, auth.user.id, [{ year, month }]);
 
   return NextResponse.json({ ok: true });
 }

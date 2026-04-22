@@ -615,3 +615,22 @@ export async function upsertMonthlySnapshotForMonth(
     },
   });
 }
+
+export async function refreshSnapshotsForMonths(
+  prisma: PrismaClient,
+  userId: string,
+  refs: MonthRef[],
+): Promise<number> {
+  if (refs.length === 0) return 0;
+  const unique = new Map<string, MonthRef>();
+  for (const ref of refs) {
+    unique.set(monthKey(ref), ref);
+  }
+  const normalized = Array.from(unique.values()).sort((a, b) =>
+    a.year === b.year ? a.month - b.month : a.year - b.year,
+  );
+  for (const ref of normalized) {
+    await upsertMonthlySnapshotForMonth(prisma, userId, ref);
+  }
+  return normalized.length;
+}

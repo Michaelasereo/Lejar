@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { requireUser } from "@/lib/auth/require-user";
 import { prisma } from "@/lib/prisma";
+import { refreshSnapshotsForMonths } from "@/lib/utils/analytics";
 import { monthlyIncomeOverrideSchema } from "@/lib/validations/income-api";
 
 export async function GET() {
@@ -59,10 +60,7 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  await prisma.monthlySnapshot.updateMany({
-    where: { userId: auth.user.id, year, month },
-    data: { needsRecalculation: true },
-  });
+  await refreshSnapshotsForMonths(prisma, auth.user.id, [{ year, month }]);
 
   return NextResponse.json(
     {

@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { requireUser } from "@/lib/auth/require-user";
 import { dateInputToDate } from "@/lib/investments/dates";
 import { prisma } from "@/lib/prisma";
+import { refreshSnapshotsForMonths } from "@/lib/utils/analytics";
 import { updateExpenseSchema } from "@/lib/validations/expense";
 
 type RouteContext = { params: { id: string } };
@@ -77,6 +78,13 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
       where: { id },
       data: updateData,
     });
+    await refreshSnapshotsForMonths(prisma, auth.user.id, [
+      {
+        year: existing.occurredAt.getFullYear(),
+        month: existing.occurredAt.getMonth() + 1,
+      },
+      { year: row.occurredAt.getFullYear(), month: row.occurredAt.getMonth() + 1 },
+    ]);
     return NextResponse.json({
       id: row.id,
       amount: row.amount.toString(),
@@ -106,6 +114,12 @@ export async function DELETE(_req: NextRequest, context: RouteContext) {
 
   try {
     await prisma.expense.delete({ where: { id } });
+    await refreshSnapshotsForMonths(prisma, auth.user.id, [
+      {
+        year: existing.occurredAt.getFullYear(),
+        month: existing.occurredAt.getMonth() + 1,
+      },
+    ]);
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error(e);
