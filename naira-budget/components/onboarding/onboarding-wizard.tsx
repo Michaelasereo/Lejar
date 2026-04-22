@@ -12,7 +12,7 @@ import {
 } from "@/lib/utils/currency";
 import { cn } from "@/lib/utils/cn";
 
-const STORAGE_KEY = "nb-onboarding-v1";
+const STORAGE_KEY = "nb-onboarding-v2";
 const STEPS = 4;
 
 const BUCKET_COLORS = [
@@ -84,22 +84,22 @@ function defaultState(): WizardState {
         id: newId(),
         name: "Pay yourself",
         color: BUCKET_COLORS[0]!,
-        amount: "50",
-        mode: "percent",
+        amount: "0",
+        mode: "naira",
       },
       {
         id: newId(),
         name: "Lifestyle",
         color: BUCKET_COLORS[1]!,
-        amount: "32",
-        mode: "percent",
+        amount: "0",
+        mode: "naira",
       },
       {
         id: newId(),
         name: "Misc",
         color: BUCKET_COLORS[2]!,
-        amount: "18",
-        mode: "percent",
+        amount: "0",
+        mode: "naira",
       },
     ],
   };
