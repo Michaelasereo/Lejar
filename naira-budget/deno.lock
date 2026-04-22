@@ -28,6 +28,7 @@
         "npm:dotenv-cli@11",
         "npm:eslint-config-next@14.2.33",
         "npm:eslint@9",
+        "npm:framer-motion@^12.38.0",
         "npm:geist@^1.7.0",
         "npm:html2canvas@^1.4.1",
         "npm:lucide-react@^1.8.0",

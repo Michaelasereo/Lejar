@@ -20,7 +20,6 @@ interface AddIncomeDraft {
   amount: string;
   effectiveFrom: string;
   thisMonthOnly: boolean;
-  monthOnlyStorageMode: "OVERRIDE" | "BOUNDED_SOURCE";
 }
 
 export function IncomeBucketsClient({ initialData }: IncomeBucketsClientProps) {
@@ -31,7 +30,6 @@ export function IncomeBucketsClient({ initialData }: IncomeBucketsClientProps) {
     amount: "",
     effectiveFrom: currentMonth,
     thisMonthOnly: false,
-    monthOnlyStorageMode: "OVERRIDE",
   });
   const [addBucket, setAddBucket] = useState<{
     name: string;
@@ -70,7 +68,7 @@ export function IncomeBucketsClient({ initialData }: IncomeBucketsClientProps) {
           amountMonthly: number;
           effectiveFrom?: string;
           incomeTiming: "MONTH_ONLY" | "RECURRING";
-          monthOnlyStorageMode?: "OVERRIDE" | "BOUNDED_SOURCE";
+          monthOnlyStorageMode?: "BOUNDED_SOURCE";
           allocationDirective: { mode: "ADJUST_EXISTING" };
         } = {
           label: addIncome.label.trim(),
@@ -80,7 +78,7 @@ export function IncomeBucketsClient({ initialData }: IncomeBucketsClientProps) {
           allocationDirective: { mode: "ADJUST_EXISTING" },
         };
         if (addIncome.thisMonthOnly) {
-          incomePayload.monthOnlyStorageMode = addIncome.monthOnlyStorageMode;
+          incomePayload.monthOnlyStorageMode = "BOUNDED_SOURCE";
         }
         const res = await fetch("/api/income", {
           method: "POST",
@@ -96,7 +94,6 @@ export function IncomeBucketsClient({ initialData }: IncomeBucketsClientProps) {
           amount: "",
           effectiveFrom: currentMonth,
           thisMonthOnly: false,
-          monthOnlyStorageMode: "OVERRIDE",
         });
       }
       if (

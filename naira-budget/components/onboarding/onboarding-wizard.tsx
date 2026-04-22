@@ -263,6 +263,8 @@ export function OnboardingWizard() {
     (sum, bucket) => sum + bucketPercentage(bucket, totalIncome),
     0,
   );
+  const remainingAmount = totalIncome - allocated;
+  const remainingPercentage = 100 - totalBucketPercentage;
   const balanced = totalIncome > 0 && Math.abs(totalBucketPercentage - 100) < 0.01;
 
   const canNextStep0 = (() => {
@@ -657,6 +659,20 @@ export function OnboardingWizard() {
                       : totalBucketPercentage > 100
                         ? `${totalBucketPercentage.toFixed(2)}% allocated`
                         : `${totalBucketPercentage.toFixed(2)}% allocated`}
+                  </span>
+                </div>
+                <div className="mb-2 flex justify-between text-xs">
+                  <span className="text-white/45">
+                    {remainingAmount >= 0 ? "Left to allocate" : "Over-allocated"}
+                  </span>
+                  <span
+                    className={cn(
+                      "tabular-nums",
+                      remainingAmount >= 0 ? "text-white/70" : "text-red-400",
+                    )}
+                  >
+                    {formatNaira(Math.abs(remainingAmount))} ·{" "}
+                    {Math.abs(remainingPercentage).toFixed(2)}%
                   </span>
                 </div>
                 <div className="h-2 w-full bg-white/5">

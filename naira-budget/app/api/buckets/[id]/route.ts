@@ -85,10 +85,12 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
   }
   if (parsed.data.percentage !== undefined) {
     data.percentage = parsed.data.percentage;
-    const totalIncome = await getTotalIncomeForUser(auth.user.id);
-    data.allocatedAmount = new Prisma.Decimal(
-      Math.round((parsed.data.percentage / 100) * totalIncome),
-    );
+    if (parsed.data.allocatedAmount === undefined) {
+      const totalIncome = await getTotalIncomeForUser(auth.user.id);
+      data.allocatedAmount = new Prisma.Decimal(
+        Math.round((parsed.data.percentage / 100) * totalIncome),
+      );
+    }
   }
   if (parsed.data.sortOrder !== undefined) data.sortOrder = parsed.data.sortOrder;
 

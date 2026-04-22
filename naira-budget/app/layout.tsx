@@ -7,13 +7,14 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Orjar",
   description: "Nigerian-first budgeting and wealth planning app.",
-  metadataBase: new URL("https://orjar.netlify.app"),
+  metadataBase: new URL("https://orjar.app"),
   icons: {
     icon: [
-      { url: "/Orjar-favicon.png", type: "image/png" },
+      { url: "/icon.svg", type: "image/svg+xml" },
       { url: "/Orjar-logo.svg", type: "image/svg+xml" },
     ],
-    apple: "/Orjar-favicon.png",
+    shortcut: [{ url: "/icon.svg", type: "image/svg+xml" }],
+    apple: [{ url: "/icon.svg", type: "image/svg+xml" }],
   },
 };
 

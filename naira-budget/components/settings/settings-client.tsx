@@ -93,16 +93,22 @@ export function SettingsClient({ data }: SettingsClientProps) {
     setSavingBuckets(true);
     try {
       await Promise.all(
-        data.buckets.map((bucket) =>
-          fetch(`/api/buckets/${bucket.id}`, {
+        data.buckets.map((bucket) => {
+          const percentage = Number(bucketDrafts[bucket.id] ?? bucket.percentage);
+          const allocatedAmount = Number(
+            bucketAmountDrafts[bucket.id] ?? percentageToAmount(percentage, totalIncome),
+          );
+
+          return fetch(`/api/buckets/${bucket.id}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               name: (bucketNameDrafts[bucket.id] ?? bucket.name).trim() || bucket.name,
-              percentage: Number(bucketDrafts[bucket.id] ?? bucket.percentage),
+              percentage,
+              allocatedAmount,
             }),
-          }),
-        ),
+          });
+        }),
       );
       router.refresh();
     } finally {

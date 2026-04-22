@@ -13,14 +13,12 @@ interface IncomeSourceListProps {
     amount: string;
     effectiveFrom: string;
     thisMonthOnly: boolean;
-    monthOnlyStorageMode: "OVERRIDE" | "BOUNDED_SOURCE";
   };
   onAddDraftChange: (next: {
     label: string;
     amount: string;
     effectiveFrom: string;
     thisMonthOnly: boolean;
-    monthOnlyStorageMode: "OVERRIDE" | "BOUNDED_SOURCE";
   }) => void;
   onRefresh: () => void;
 }
@@ -48,7 +46,7 @@ export function IncomeSourceList({
         amountMonthly: amt,
         effectiveFrom: addDraft.effectiveFrom,
         incomeTiming: addDraft.thisMonthOnly ? "MONTH_ONLY" : "RECURRING",
-        monthOnlyStorageMode: addDraft.thisMonthOnly ? addDraft.monthOnlyStorageMode : undefined,
+        monthOnlyStorageMode: addDraft.thisMonthOnly ? "BOUNDED_SOURCE" : undefined,
         allocationDirective: { mode: "ADJUST_EXISTING" },
       }),
     });
@@ -156,22 +154,9 @@ export function IncomeSourceList({
               />
             </div>
             {addDraft.thisMonthOnly ? (
-              <div className="flex flex-col gap-1">
-                <label className="text-xs text-white/50">Month-only behavior</label>
-                <select
-                  value={addDraft.monthOnlyStorageMode}
-                  onChange={(e) =>
-                    onAddDraftChange({
-                      ...addDraft,
-                      monthOnlyStorageMode: e.target.value as "OVERRIDE" | "BOUNDED_SOURCE",
-                    })
-                  }
-                  className="min-h-10 w-full border border-white/15 bg-background px-3 py-2 text-sm outline-none focus:border-accent sm:w-56"
-                >
-                  <option value="OVERRIDE">Replace this month's total</option>
-                  <option value="BOUNDED_SOURCE">Add a seperate income source (This month only)</option>
-                </select>
-              </div>
+              <p className="text-xs text-white/50 sm:pb-2">
+                This will add a separate income source for the selected month.
+              </p>
             ) : (
               <p className="text-xs text-white/50 sm:pb-2">
                 Unchecked = applies from selected month moving forward.
