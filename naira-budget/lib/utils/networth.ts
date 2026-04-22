@@ -21,6 +21,8 @@ export async function calculateCurrentNetWorth(userId: string): Promise<{
 }> {
   const now = new Date();
   const currentMonthStart = startOfMonth(now);
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
 
   const snapshots = await prisma.monthlySnapshot.findMany({
     where: { userId },
@@ -29,8 +31,8 @@ export async function calculateCurrentNetWorth(userId: string): Promise<{
 
   const currentMonthIncome = await getIncomeForMonth(
     userId,
-    now.getFullYear(),
-    now.getMonth() + 1,
+    currentYear,
+    currentMonth,
   );
   const currentMonthExpenses = await prisma.expense.aggregate({
     where: {
@@ -42,9 +44,20 @@ export async function calculateCurrentNetWorth(userId: string): Promise<{
     },
     _sum: { amount: true },
   });
-  const currentMonthSaved = Math.max(0, currentMonthIncome - toNum(currentMonthExpenses._sum.amount));
-
-  const historicalSavings = snapshots.reduce((sum, s) => sum + Math.max(0, toNum(s.totalSaved)), 0);
+  const currentMonthSavedLive = Math.max(
+    0,
+    currentMonthIncome - toNum(currentMonthExpenses._sum.amount),
+  );
+  const currentSnapshot = snapshots.find(
+    (s) => s.year === currentYear && s.month === currentMonth,
+  );
+  const historicalSavings = snapshots.reduce((sum, s) => {
+    if (s.year === currentYear && s.month === currentMonth) return sum;
+    return sum + Math.max(0, toNum(s.totalSaved));
+  }, 0);
+  const currentMonthSaved = currentSnapshot
+    ? Math.max(0, toNum(currentSnapshot.totalSaved))
+    : currentMonthSavedLive;
   const cumulativeSavings = historicalSavings + currentMonthSaved;
 
   const investments = await prisma.investment.findMany({
@@ -144,7 +157,7 @@ export async function getNetWorthHistory(
       year: true,
       month: true,
       netWorth: true,
-      cumulativeSavings: true,
+      totalSaved: true,
       investmentValue: true,
       jarsTotal: true,
       confirmedReturns: true,
@@ -153,7 +166,7 @@ export async function getNetWorthHistory(
 
   let runningCumulativeSavings = 0;
   return snapshots.map((s) => {
-    runningCumulativeSavings += Math.max(0, toNum(s.cumulativeSavings));
+    runningCumulativeSavings += Math.max(0, toNum(s.totalSaved));
     const assets =
       runningCumulativeSavings +
       toNum(s.investmentValue) +
