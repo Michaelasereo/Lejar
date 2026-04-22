@@ -4,7 +4,7 @@ import { Mail } from "lucide-react";
 import { ResendVerificationButton } from "@/components/auth/resend-verification-button";
 
 export const metadata: Metadata = {
-  title: "Check your email — Naira Budget",
+  title: "Check your email — Orjar",
   description: "Confirm your email to finish signing up.",
 };
 

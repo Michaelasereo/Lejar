@@ -10,7 +10,7 @@ import { MigrateRentTrigger } from "@/components/jars/migrate-rent-trigger";
 import { GroupJarCard } from "@/components/jars/GroupJarCard";
 
 export const metadata: Metadata = {
-  title: "Savings jars — Naira Budget",
+  title: "Savings jars — Orjar",
 };
 
 function toNum(v: { toString(): string }): number {

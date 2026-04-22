@@ -13,7 +13,7 @@ import { DashboardMonthSync } from "@/components/dashboard/dashboard-month-sync"
 import { DashboardFab } from "@/components/dashboard/dashboard-fab";
 
 export const metadata: Metadata = {
-  title: "Dashboard — Naira Budget",
+  title: "Dashboard — Orjar",
 };
 
 export default async function DashboardPage({

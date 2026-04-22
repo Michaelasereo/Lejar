@@ -60,13 +60,13 @@ export function StreaksPanel({ streaks, milestones: initialMilestones }: Streaks
     const file = new File([blob], "milestone.png", { type: "image/png" });
 
     if (navigator.share && navigator.canShare?.({ files: [file] })) {
-      await navigator.share({ title: "Naira Budget Milestone", files: [file] });
+      await navigator.share({ title: "Orjar Milestone", files: [file] });
       return;
     }
 
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = "naira-budget-milestone.png";
+    link.download = "orjar-milestone.png";
     link.click();
     URL.revokeObjectURL(link.href);
   }
@@ -130,7 +130,7 @@ export function StreaksPanel({ streaks, milestones: initialMilestones }: Streaks
       {selected ? (
         <section className="space-y-3 border border-white/10 bg-white/[0.02] p-4">
           <div ref={cardRef} className="border border-white/10 bg-black p-5">
-            <p className="text-xs uppercase tracking-widest text-white/40">Naira Budget</p>
+            <p className="text-xs uppercase tracking-widest text-white/40">Orjar</p>
             <p className="mt-2 text-xl font-medium text-white">
               {MILESTONE_LABELS[selected.type] ?? selected.type}
             </p>

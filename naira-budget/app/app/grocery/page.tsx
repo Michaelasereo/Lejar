@@ -5,7 +5,7 @@ import { getGroceryPageData } from "@/lib/grocery/get-grocery-page-data";
 import { GroceryClient } from "@/components/grocery/grocery-client";
 
 export const metadata: Metadata = {
-  title: "Grocery — Naira Budget",
+  title: "Grocery — Orjar",
 };
 
 export default async function GroceryPage() {

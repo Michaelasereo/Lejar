@@ -28,7 +28,7 @@ export default async function GroupJarInvitePage({ params }: Props) {
       <p className="mt-2 text-sm text-white/50">Target: {invite.jar.targetAmount.toString()}</p>
       {!user ? (
         <div className="mt-6 space-y-2">
-          <p className="text-sm text-white/60">Join Naira Budget to accept this invite.</p>
+          <p className="text-sm text-white/60">Join Orjar to accept this invite.</p>
           <Link href={`/signup?redirect=/app/jars/invite/${params.token}`} className="inline-block border border-accent bg-accent px-4 py-2 text-sm text-black">
             Sign up free
           </Link>

@@ -10,9 +10,22 @@ import { MarqueeStrip } from "@/components/landing/marquee-strip";
 import { ScrollReveal } from "@/components/landing/scroll-reveal";
 
 export const metadata: Metadata = {
-  title: "Naira Budget — Budget your naira. Build real wealth.",
+  title: "Orjar — Budget your naira. Build real wealth.",
   description:
     "The only budget planner built for Nigeria — T-bills, PiggyVest, annual rent, and everything in between. No bank sync. No real money.",
+  openGraph: {
+    title: "Orjar — Budget your naira. Build real wealth.",
+    description:
+      "The only budget planner built for Nigeria — T-bills, PiggyVest, annual rent, and everything in between. No bank sync. No real money.",
+    images: [{ url: "/Orjar-logo.png", width: 1200, height: 630, alt: "Orjar" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Orjar — Budget your naira. Build real wealth.",
+    description:
+      "The only budget planner built for Nigeria — T-bills, PiggyVest, annual rent, and everything in between. No bank sync. No real money.",
+    images: ["/Orjar-logo.png"],
+  },
 };
 
 export default function HomePage() {

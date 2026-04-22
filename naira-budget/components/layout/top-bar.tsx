@@ -22,7 +22,7 @@ function pageTitle(pathname: string): string {
   const hit = TITLE_BY_PREFIX.find(
     (t) => pathname === t.prefix || pathname.startsWith(`${t.prefix}/`),
   );
-  return hit?.title ?? "Naira Budget";
+  return hit?.title ?? "Orjar";
 }
 
 function initialsFromEmail(email: string): string {

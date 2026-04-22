@@ -12,7 +12,7 @@ import { ExpensesClient } from "@/components/expenses/expenses-client";
 import { ExpensesMonthSync } from "@/components/expenses/expenses-month-sync";
 
 export const metadata: Metadata = {
-  title: "Expenses — Naira Budget",
+  title: "Expenses — Orjar",
 };
 
 export default async function ExpensesPage({

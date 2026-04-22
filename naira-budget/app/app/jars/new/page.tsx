@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { NewJarForm } from "@/components/jars/new-jar-form";
 
 export const metadata: Metadata = {
-  title: "New jar — Naira Budget",
+  title: "New jar — Orjar",
 };
 
 export default function NewJarPage() {

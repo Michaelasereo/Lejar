@@ -5,7 +5,7 @@ import { getInvestmentsPageData } from "@/lib/investments/get-investments-page-d
 import { InvestmentsClient } from "@/components/investments/investments-client";
 
 export const metadata: Metadata = {
-  title: "Investments — Naira Budget",
+  title: "Investments — Orjar",
 };
 
 export default async function InvestmentsPage() {

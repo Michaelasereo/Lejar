@@ -6,7 +6,7 @@ import { getAdminStats } from "@/lib/admin/get-admin-stats";
 import { AdminOverview } from "@/components/admin/admin-overview";
 
 export const metadata: Metadata = {
-  title: "Admin — Naira Budget",
+  title: "Admin — Orjar",
 };
 
 export default async function AdminPage() {

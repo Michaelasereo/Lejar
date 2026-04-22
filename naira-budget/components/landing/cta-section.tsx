@@ -33,9 +33,7 @@ export function CtaSection() {
         >
           Start free
         </Link>
-        <p className="mt-8 text-sm text-white/40">
-          Join thousands of Nigerian professionals
-        </p>
+        <p className="mt-8 text-sm text-white/40">Built for Nigerian professionals</p>
       </div>
     </section>
   );

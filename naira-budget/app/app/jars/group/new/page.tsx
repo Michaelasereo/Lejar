@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { NewGroupJarForm } from "@/components/jars/NewGroupJarForm";
 
 export const metadata: Metadata = {
-  title: "New group jar — Naira Budget",
+  title: "New group jar — Orjar",
 };
 
 export default function NewGroupJarPage() {

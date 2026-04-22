@@ -4,7 +4,7 @@ import { createServerClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 
 export const metadata: Metadata = {
-  title: "Onboarding — Naira Budget",
+  title: "Onboarding — Orjar",
   description: "Set up your income, rent, and buckets.",
 };
 

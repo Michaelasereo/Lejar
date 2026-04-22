@@ -7,6 +7,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Orjar",
   description: "Nigerian-first budgeting and wealth planning app.",
+  metadataBase: new URL("https://orjar.netlify.app"),
   icons: {
     icon: [
       { url: "/Orjar-favicon.png", type: "image/png" },

@@ -5,7 +5,7 @@ import { getIncomePageData } from "@/lib/income/get-income-page-data";
 import { IncomeBucketsClient } from "@/components/income/income-buckets-client";
 
 export const metadata: Metadata = {
-  title: "Buckets — Naira Budget",
+  title: "Buckets — Orjar",
 };
 
 export default async function IncomePage() {

@@ -10,7 +10,7 @@ import { formatMonthParam, parseMonthParam } from "@/lib/utils/dates";
 import { WealthProjectionChart } from "@/components/dashboard/wealth-projection-chart";
 
 export const metadata: Metadata = {
-  title: "Projection — Naira Budget",
+  title: "Projection — Orjar",
 };
 
 export default async function ProjectionPage({

@@ -23,7 +23,7 @@ export function FooterSection() {
           </Link>
         </nav>
         <div className="flex flex-col items-center gap-1 text-center md:items-end">
-          <span>© {new Date().getFullYear()} Naira Budget</span>
+          <span>© {new Date().getFullYear()} Orjar</span>
           <span className="text-white/20 italic">Designed in Lagos</span>
         </div>
       </div>

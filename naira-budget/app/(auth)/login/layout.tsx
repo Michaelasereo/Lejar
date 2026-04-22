@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Sign in — Naira Budget",
-  description: "Sign in to Naira Budget.",
+  title: "Sign in — Orjar",
+  description: "Sign in to Orjar.",
 };
 
 export default function LoginLayout({ children }: { children: React.ReactNode }) {

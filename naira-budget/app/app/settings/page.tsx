@@ -5,7 +5,7 @@ import { getSettingsPageData } from "@/lib/settings/get-settings-page-data";
 import { SettingsClient } from "@/components/settings/settings-client";
 
 export const metadata: Metadata = {
-  title: "Settings — Naira Budget",
+  title: "Settings — Orjar",
 };
 
 export default async function SettingsPage() {

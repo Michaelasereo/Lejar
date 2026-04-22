@@ -291,7 +291,7 @@ export function SettingsClient({ data }: SettingsClientProps) {
           <h2 className="mt-1 text-lg font-medium text-foreground">About</h2>
         </div>
         <div className="space-y-2 px-4 py-4 text-sm text-white/55">
-          <p>Naira Budget — personal budgeting and planning for Nigeria-first use cases.</p>
+          <p>Orjar — personal budgeting and planning for Nigeria-first use cases.</p>
           <p>
             <Link href="/" className="text-accent underline-offset-2 hover:underline">
               Marketing site

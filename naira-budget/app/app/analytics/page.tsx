@@ -19,7 +19,7 @@ import { checkNetWorthMilestones, getUserStreaks } from "@/lib/utils/streaks";
 import { StreaksPanel } from "@/components/analytics/streaks-panel";
 
 export const metadata: Metadata = {
-  title: "Analytics — Naira Budget",
+  title: "Analytics — Orjar",
 };
 
 export default async function AnalyticsPage({
