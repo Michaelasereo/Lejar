@@ -12,7 +12,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           />
           <div className="relative z-[1]">
             <Link href="/" className="inline-flex items-center gap-2">
-              <BrandLogo />
+              <BrandLogo className="w-[124px]" />
             </Link>
           </div>
           <div className="relative z-[1] space-y-4">
@@ -29,7 +29,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         <div className="flex flex-col justify-center px-4 py-12 md:px-12 md:py-16">
           <div className="mb-10 md:hidden">
             <Link href="/" className="inline-flex items-center gap-2">
-              <BrandLogo className="h-6" />
+              <BrandLogo className="w-[112px]" />
             </Link>
           </div>
           <div className="mx-auto w-full max-w-sm">{children}</div>

@@ -5,8 +5,15 @@ import { Toaster } from "sonner";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Naira Budget",
+  title: "Orjar",
   description: "Nigerian-first budgeting and wealth planning app.",
+  icons: {
+    icon: [
+      { url: "/Orjar-favicon.png", type: "image/png" },
+      { url: "/Orjar-logo.svg", type: "image/svg+xml" },
+    ],
+    apple: "/Orjar-favicon.png",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
