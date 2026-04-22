@@ -17,8 +17,8 @@ export function HeroSection() {
           Build real wealth.
         </h1>
         <p className="mx-auto mb-12 max-w-xl text-base leading-relaxed text-white/50 md:text-lg">
-          The only budget planner built for Nigeria — T-bills, PiggyVest, annual
-          rent, and everything in between. No bank sync. No real money.
+          The only budget planner built for Nigeria — T-bills, savings locks, Group target
+          savings, annual rent, and everything in between. No bank sync. No real money.
         </p>
         <div className="flex flex-col items-center justify-center gap-4 sm:flex-row sm:gap-5">
           <Link
