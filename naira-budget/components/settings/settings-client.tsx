@@ -21,6 +21,9 @@ export function SettingsClient({ data }: SettingsClientProps) {
   const [bucketDrafts, setBucketDrafts] = useState<Record<string, string>>(
     Object.fromEntries(data.buckets.map((bucket) => [bucket.id, bucket.percentage.toFixed(2)])),
   );
+  const [bucketNameDrafts, setBucketNameDrafts] = useState<Record<string, string>>(
+    Object.fromEntries(data.buckets.map((bucket) => [bucket.id, bucket.name])),
+  );
   const [savingBuckets, setSavingBuckets] = useState(false);
 
   async function signOut() {
@@ -55,7 +58,7 @@ export function SettingsClient({ data }: SettingsClientProps) {
   const remainingPercentage = 100 - bucketTotal;
   const bucketOver = remainingPercentage < -0.01;
 
-  async function saveBucketPercentages() {
+  async function saveBuckets() {
     if (bucketOver) return;
     setSavingBuckets(true);
     try {
@@ -65,6 +68,7 @@ export function SettingsClient({ data }: SettingsClientProps) {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
+              name: (bucketNameDrafts[bucket.id] ?? bucket.name).trim() || bucket.name,
               percentage: Number(bucketDrafts[bucket.id] ?? bucket.percentage),
             }),
           }),
@@ -163,13 +167,20 @@ export function SettingsClient({ data }: SettingsClientProps) {
             Setting a percentage makes each bucket adapt to the selected month&apos;s income.
           </p>
           {data.buckets.map((bucket) => (
-            <div key={bucket.id} className="flex items-center gap-3">
+            <div key={bucket.id} className="grid grid-cols-[auto_1fr_auto_auto] items-center gap-3">
               <span
                 className="h-2.5 w-2.5 rounded-full"
                 style={{ backgroundColor: bucket.color }}
                 aria-hidden
               />
-              <span className="flex-1 text-white">{bucket.name}</span>
+              <input
+                value={bucketNameDrafts[bucket.id] ?? ""}
+                onChange={(e) =>
+                  setBucketNameDrafts((prev) => ({ ...prev, [bucket.id]: e.target.value }))
+                }
+                className="h-9 border border-white/15 bg-background px-2 text-sm text-white"
+                placeholder="Bucket name"
+              />
               <input
                 inputMode="decimal"
                 value={bucketDrafts[bucket.id] ?? ""}
@@ -187,10 +198,10 @@ export function SettingsClient({ data }: SettingsClientProps) {
           <button
             type="button"
             disabled={savingBuckets || bucketOver}
-            onClick={() => void saveBucketPercentages()}
+            onClick={() => void saveBuckets()}
             className="min-h-11 border border-accent bg-accent px-4 py-2 text-sm text-accent-foreground disabled:opacity-40"
           >
-            {savingBuckets ? "Saving..." : "Save bucket percentages"}
+            {savingBuckets ? "Saving..." : "Save buckets"}
           </button>
         </div>
       </section>

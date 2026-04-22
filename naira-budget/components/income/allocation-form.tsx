@@ -22,7 +22,6 @@ interface AllocationFormProps {
 
 export function AllocationForm({ bucketId, totalIncome, onCreated }: AllocationFormProps) {
   const [label, setLabel] = useState("");
-  const [mode, setMode] = useState<"percent" | "amount">("percent");
   const [percentage, setPercentage] = useState("");
   const [amount, setAmount] = useState("");
   const [platform, setPlatform] = useState<(typeof ALLOCATION_PLATFORMS)[number]["value"]>(
@@ -33,12 +32,21 @@ export function AllocationForm({ bucketId, totalIncome, onCreated }: AllocationF
   >("SPENDING");
   const [submitting, setSubmitting] = useState(false);
 
+  function syncFromPercentage(rawValue: string) {
+    const pct = parseAmountInput(rawValue);
+    setPercentage(rawValue);
+    setAmount(String(percentageToAmount(pct, totalIncome)));
+  }
+
+  function syncFromAmount(rawValue: string) {
+    const amt = parseAmountInput(rawValue);
+    setAmount(rawValue);
+    setPercentage(amountToPercentage(amt, totalIncome).toFixed(2));
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    const pct =
-      mode === "percent"
-        ? parseAmountInput(percentage)
-        : amountToPercentage(parseAmountInput(amount), totalIncome);
+    const pct = parseAmountInput(percentage);
     if (!label.trim() || pct <= 0 || pct > 100) {
       toast.error("Enter a label and a valid percentage.");
       return;
@@ -51,6 +59,7 @@ export function AllocationForm({ bucketId, totalIncome, onCreated }: AllocationF
         body: JSON.stringify({
           label: label.trim(),
           percentage: pct,
+          amount: parseAmountInput(amount),
           platform,
           allocationType,
         }),
@@ -72,13 +81,6 @@ export function AllocationForm({ bucketId, totalIncome, onCreated }: AllocationF
     }
   }
 
-  const derivedAmount =
-    mode === "percent"
-      ? percentageToAmount(parseAmountInput(percentage), totalIncome)
-      : parseAmountInput(amount);
-  const displayPct =
-    mode === "percent" ? parseAmountInput(percentage) : amountToPercentage(derivedAmount, totalIncome);
-
   return (
     <form
       onSubmit={(e) => void submit(e)}
@@ -93,51 +95,27 @@ export function AllocationForm({ bucketId, totalIncome, onCreated }: AllocationF
           className="min-h-10 border border-white/15 bg-background px-3 py-2 text-sm outline-none focus:border-accent"
         />
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setMode("percent")}
-            className={cn(
-              "min-h-10 border px-3 text-xs",
-              mode === "percent" ? "border-accent text-accent" : "border-white/15 text-white/50",
-            )}
-          >
-            %
-          </button>
-          <button
-            type="button"
-            onClick={() => setMode("amount")}
-            className={cn(
-              "min-h-10 border px-3 text-xs",
-              mode === "amount" ? "border-accent text-accent" : "border-white/15 text-white/50",
-            )}
-          >
-            ₦
-          </button>
-          {mode === "percent" ? (
-            <div className="flex items-center gap-2">
-              <input
-                inputMode="decimal"
-                value={percentage}
-                onChange={(e) => setPercentage(e.target.value)}
-                placeholder="25"
-                className="min-h-10 w-[70px] border border-white/10 bg-white/5 px-2 text-center text-sm outline-none focus:border-white/30"
-              />
-              <span className="text-sm text-white/40">%</span>
-            </div>
-          ) : (
-            <input
-              inputMode="decimal"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="200000"
-              className="min-h-10 w-32 border border-white/10 bg-white/5 px-3 py-2 text-sm outline-none focus:border-white/30"
-            />
-          )}
+          <input
+            inputMode="decimal"
+            value={amount}
+            onChange={(e) => syncFromAmount(e.target.value)}
+            placeholder="200000"
+            className="min-h-10 w-32 border border-white/10 bg-white/5 px-3 py-2 text-sm outline-none focus:border-white/30"
+          />
+          <span className="text-xs text-white/40">₦</span>
+          <input
+            inputMode="decimal"
+            value={percentage}
+            onChange={(e) => syncFromPercentage(e.target.value)}
+            placeholder="25"
+            className="min-h-10 w-[80px] border border-white/10 bg-white/5 px-2 text-center text-sm outline-none focus:border-white/30"
+          />
+          <span className="text-sm text-white/40">%</span>
           <span
             className="text-xs text-white/40"
-            title={`Calculated from ${displayPct.toFixed(2)}% of ${formatNaira(totalIncome)} total income`}
+            title={`Calculated from ${parseAmountInput(percentage).toFixed(2)}% of ${formatNaira(totalIncome)} total income`}
           >
-            = {formatNaira(derivedAmount)}
+            = {formatNaira(parseAmountInput(amount))}
           </span>
         </div>
         <div className="flex flex-wrap gap-1.5">

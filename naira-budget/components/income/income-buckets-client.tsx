@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import type { IncomePageData } from "@/lib/income/get-income-page-data";
 import { BUCKET_COLORS } from "@/lib/income/constants";
+import { formatMonthParam, parseMonthParam } from "@/lib/utils/dates";
 import { parseAmountInput } from "@/lib/income/money";
 import { BalanceIndicator } from "@/components/income/balance-indicator";
 import { BucketList } from "@/components/income/bucket-list";
@@ -14,9 +15,32 @@ interface IncomeBucketsClientProps {
   initialData: IncomePageData;
 }
 
+interface AddIncomeDraft {
+  label: string;
+  amount: string;
+  effectiveFrom: string;
+  incomeTiming: "MONTH_ONLY" | "RECURRING" | "DURATION";
+  monthOnlyStorageMode: "OVERRIDE" | "BOUNDED_SOURCE";
+  effectiveTo: string;
+  allocationMode: "ADJUST_EXISTING" | "NEW_BUCKET";
+  newBucketName: string;
+  newBucketColor: string;
+}
+
 export function IncomeBucketsClient({ initialData }: IncomeBucketsClientProps) {
   const router = useRouter();
-  const [addIncome, setAddIncome] = useState({ label: "", amount: "" });
+  const currentMonth = formatMonthParam(new Date().getFullYear(), new Date().getMonth() + 1);
+  const [addIncome, setAddIncome] = useState<AddIncomeDraft>({
+    label: "",
+    amount: "",
+    effectiveFrom: currentMonth,
+    incomeTiming: "RECURRING" as "MONTH_ONLY" | "RECURRING" | "DURATION",
+    monthOnlyStorageMode: "OVERRIDE" as "OVERRIDE" | "BOUNDED_SOURCE",
+    effectiveTo: currentMonth,
+    allocationMode: "ADJUST_EXISTING" as "ADJUST_EXISTING" | "NEW_BUCKET",
+    newBucketName: "",
+    newBucketColor: BUCKET_COLORS[0] ?? "#7C63FD",
+  });
   const [addBucket, setAddBucket] = useState<{
     name: string;
     color: string;
@@ -49,19 +73,67 @@ export function IncomeBucketsClient({ initialData }: IncomeBucketsClientProps) {
     if (!balanced || !dirty) return;
     try {
       if (addIncome.label.trim() && parseAmountInput(addIncome.amount) > 0) {
+        if (addIncome.allocationMode === "NEW_BUCKET" && !addIncome.newBucketName.trim()) {
+          throw new Error("Enter a new bucket name for this income.");
+        }
+        const incomePayload: {
+          label: string;
+          amountMonthly: number;
+          effectiveFrom?: string;
+          incomeTiming: "MONTH_ONLY" | "RECURRING" | "DURATION";
+          monthOnlyStorageMode?: "OVERRIDE" | "BOUNDED_SOURCE";
+          effectiveTo?: string;
+          allocationDirective:
+            | { mode: "ADJUST_EXISTING" }
+            | { mode: "NEW_BUCKET"; bucketName: string; bucketColor: string };
+        } = {
+          label: addIncome.label.trim(),
+          amountMonthly: parseAmountInput(addIncome.amount),
+          incomeTiming: addIncome.incomeTiming,
+          effectiveFrom: addIncome.effectiveFrom,
+          allocationDirective:
+            addIncome.allocationMode === "NEW_BUCKET"
+              ? {
+                  mode: "NEW_BUCKET",
+                  bucketName: addIncome.newBucketName.trim(),
+                  bucketColor: addIncome.newBucketColor,
+                }
+              : { mode: "ADJUST_EXISTING" },
+        };
+        if (addIncome.incomeTiming === "MONTH_ONLY") {
+          incomePayload.monthOnlyStorageMode = addIncome.monthOnlyStorageMode;
+        }
+        if (addIncome.incomeTiming === "DURATION") {
+          const from = parseMonthParam(addIncome.effectiveFrom);
+          const to = parseMonthParam(addIncome.effectiveTo);
+          if (
+            to.year < from.year ||
+            (to.year === from.year && to.month < from.month)
+          ) {
+            throw new Error("Duration end month cannot be before start month.");
+          }
+          incomePayload.effectiveTo = addIncome.effectiveTo;
+        }
         const res = await fetch("/api/income", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            label: addIncome.label.trim(),
-            amountMonthly: parseAmountInput(addIncome.amount),
-          }),
+          body: JSON.stringify(incomePayload),
         });
         if (!res.ok) {
           const j = await res.json().catch(() => ({}));
           throw new Error(typeof j.error === "string" ? j.error : "Could not add income");
         }
-        setAddIncome({ label: "", amount: "" });
+        setAddIncome({
+          label: "",
+          amount: "",
+          effectiveFrom: currentMonth,
+          incomeTiming: "RECURRING",
+          monthOnlyStorageMode: "OVERRIDE",
+          effectiveTo: currentMonth,
+          allocationMode: "ADJUST_EXISTING",
+          newBucketName: "",
+          newBucketColor: BUCKET_COLORS[0] ?? "#7C63FD",
+        });
       }
       if (
         addBucket.name.trim() &&

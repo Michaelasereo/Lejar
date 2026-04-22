@@ -5,6 +5,7 @@ import { BUCKET_COLORS } from "@/lib/income/constants";
 import { parseAmountInput } from "@/lib/income/money";
 import { BucketCard } from "@/components/income/bucket-card";
 import { cn } from "@/lib/utils/cn";
+import { amountToPercentage, percentageToAmount } from "@/lib/utils/currency";
 
 interface BucketListProps {
   buckets: Array<{
@@ -43,6 +44,24 @@ export function BucketList({
   onAddDraftChange,
   onRefresh,
 }: BucketListProps) {
+  function syncAddDraftFromAmount(rawValue: string) {
+    const amount = parseAmountInput(rawValue);
+    onAddDraftChange({
+      ...addDraft,
+      amount: rawValue,
+      percentage: amountToPercentage(amount, totalIncome).toFixed(2),
+    });
+  }
+
+  function syncAddDraftFromPercentage(rawValue: string) {
+    const percentage = parseAmountInput(rawValue);
+    onAddDraftChange({
+      ...addDraft,
+      percentage: rawValue,
+      amount: String(percentageToAmount(percentage, totalIncome)),
+    });
+  }
+
   async function addBucket(e: React.FormEvent) {
     e.preventDefault();
     const name = addDraft.name.trim();
@@ -138,14 +157,14 @@ export function BucketList({
             <input
               inputMode="decimal"
               value={addDraft.amount}
-              onChange={(e) => onAddDraftChange({ ...addDraft, amount: e.target.value })}
+              onChange={(e) => syncAddDraftFromAmount(e.target.value)}
               placeholder="Allocated amount"
               className="min-h-11 w-full border border-white/15 bg-background px-3 py-2.5 text-sm outline-none focus:border-accent sm:w-40"
             />
             <input
               inputMode="decimal"
               value={addDraft.percentage}
-              onChange={(e) => onAddDraftChange({ ...addDraft, percentage: e.target.value })}
+              onChange={(e) => syncAddDraftFromPercentage(e.target.value)}
               placeholder="Bucket %"
               className="min-h-11 w-full border border-white/15 bg-background px-3 py-2.5 text-sm outline-none focus:border-accent sm:w-28"
             />

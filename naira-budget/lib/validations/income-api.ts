@@ -11,11 +11,43 @@ const platform = z.enum([
 
 const allocationType = z.enum(["SAVINGS", "INVESTMENT", "SPENDING"]);
 
-export const createIncomeSchema = z.object({
-  label: z.string().min(1).max(120),
-  amountMonthly: z.number().positive().finite(),
-  effectiveFrom: z.string().optional(),
-});
+const incomeAllocationDirectiveSchema = z.discriminatedUnion("mode", [
+  z.object({
+    mode: z.literal("ADJUST_EXISTING"),
+  }),
+  z.object({
+    mode: z.literal("NEW_BUCKET"),
+    bucketName: z.string().min(1).max(80),
+    bucketColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
+  }),
+]);
+
+export const createIncomeSchema = z
+  .object({
+    label: z.string().min(1).max(120),
+    amountMonthly: z.number().positive().finite(),
+    effectiveFrom: z.string().regex(/^\d{4}-\d{2}$/).optional(),
+    incomeTiming: z.enum(["MONTH_ONLY", "RECURRING", "DURATION"]).default("RECURRING"),
+    monthOnlyStorageMode: z.enum(["OVERRIDE", "BOUNDED_SOURCE"]).optional(),
+    effectiveTo: z.string().regex(/^\d{4}-\d{2}$/).optional(),
+    allocationDirective: incomeAllocationDirectiveSchema.default({ mode: "ADJUST_EXISTING" }),
+  })
+  .superRefine((data, ctx) => {
+    if (data.incomeTiming === "MONTH_ONLY" && !data.monthOnlyStorageMode) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["monthOnlyStorageMode"],
+        message: "monthOnlyStorageMode is required for month-only income.",
+      });
+    }
+    if (data.incomeTiming === "DURATION" && !data.effectiveTo) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["effectiveTo"],
+        message: "effectiveTo is required for duration income.",
+      });
+    }
+  });
 
 export const updateIncomeSchema = z.object({
   label: z.string().min(1).max(120).optional(),

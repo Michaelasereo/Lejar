@@ -56,16 +56,24 @@ function AllocationRow({
   onRefresh: () => void;
 }) {
   const [editing, setEditing] = useState(false);
-  const [mode, setMode] = useState<"percent" | "amount">("percent");
   const [draftLabel, setDraftLabel] = useState(allocation.label);
   const [draftPercentage, setDraftPercentage] = useState(allocation.percentage.toFixed(2));
   const [draftAmount, setDraftAmount] = useState(String(Math.round(allocation.amount)));
 
+  function syncFromAmount(rawValue: string) {
+    const amt = parseAmountInput(rawValue);
+    setDraftAmount(rawValue);
+    setDraftPercentage(amountToPercentage(amt, totalIncome).toFixed(2));
+  }
+
+  function syncFromPercentage(rawValue: string) {
+    const pct = parseAmountInput(rawValue);
+    setDraftPercentage(rawValue);
+    setDraftAmount(String(percentageToAmount(pct, totalIncome)));
+  }
+
   async function save() {
-    const pct =
-      mode === "percent"
-        ? parseAmountInput(draftPercentage)
-        : amountToPercentage(parseAmountInput(draftAmount), totalIncome);
+    const pct = parseAmountInput(draftPercentage);
     if (!draftLabel.trim() || pct <= 0 || pct > 100) {
       toast.error("Enter a label and a valid percentage.");
       return;
@@ -76,6 +84,7 @@ function AllocationRow({
       body: JSON.stringify({
         label: draftLabel.trim(),
         percentage: pct,
+        amount: parseAmountInput(draftAmount),
       }),
     });
     if (!res.ok) {
@@ -167,58 +176,29 @@ function AllocationRow({
       )}
       {editing ? (
         <div className="mt-2 flex w-full flex-wrap items-center gap-2 pl-0 sm:pl-[110px]">
-          <button
-            type="button"
-            onClick={() => setMode("percent")}
-            className={cn(
-              "border px-2 py-1 text-[10px]",
-              mode === "percent" ? "border-accent text-accent" : "border-white/15 text-white/50",
-            )}
-          >
-            %
-          </button>
-          <button
-            type="button"
-            onClick={() => setMode("amount")}
-            className={cn(
-              "border px-2 py-1 text-[10px]",
-              mode === "amount" ? "border-accent text-accent" : "border-white/15 text-white/50",
-            )}
-          >
-            ₦
-          </button>
-          {mode === "percent" ? (
-            <div className="flex items-center gap-1">
-              <input
-                inputMode="decimal"
-                value={draftPercentage}
-                onChange={(e) => setDraftPercentage(e.target.value)}
-                className="h-9 w-[70px] border border-white/10 bg-white/5 px-2 text-center text-sm outline-none focus:border-white/30"
-              />
-              <span className="text-white/40">%</span>
-            </div>
-          ) : (
+          <input
+            inputMode="decimal"
+            value={draftAmount}
+            onChange={(e) => syncFromAmount(e.target.value)}
+            className="h-9 w-28 border border-white/10 bg-white/5 px-2 text-sm outline-none focus:border-white/30"
+          />
+          <span className="text-white/40">₦</span>
+          <div className="flex items-center gap-1">
             <input
               inputMode="decimal"
-              value={draftAmount}
-              onChange={(e) => setDraftAmount(e.target.value)}
-              className="h-9 w-28 border border-white/10 bg-white/5 px-2 text-sm outline-none focus:border-white/30"
+              value={draftPercentage}
+              onChange={(e) => syncFromPercentage(e.target.value)}
+              className="h-9 w-[70px] border border-white/10 bg-white/5 px-2 text-center text-sm outline-none focus:border-white/30"
             />
-          )}
+            <span className="text-white/40">%</span>
+          </div>
           <span
             className="text-xs text-white/40"
             title={`Calculated from ${
-              mode === "percent"
-                ? parseAmountInput(draftPercentage).toFixed(2)
-                : amountToPercentage(parseAmountInput(draftAmount), totalIncome).toFixed(2)
+              parseAmountInput(draftPercentage).toFixed(2)
             }% of ${formatNaira(totalIncome)} total income`}
           >
-            ={" "}
-            {formatNaira(
-              mode === "percent"
-                ? percentageToAmount(parseAmountInput(draftPercentage), totalIncome)
-                : parseAmountInput(draftAmount),
-            )}
+            = {formatNaira(parseAmountInput(draftAmount))}
           </span>
         </div>
       ) : null}
@@ -243,6 +223,18 @@ export function BucketCard({
   const [draftName, setDraftName] = useState(name);
   const [draftAmount, setDraftAmount] = useState(String(Math.round(allocatedAmount)));
   const [draftPercentage, setDraftPercentage] = useState(percentage.toFixed(2));
+
+  function syncBucketFromAmount(rawValue: string) {
+    const amt = parseAmountInput(rawValue);
+    setDraftAmount(rawValue);
+    setDraftPercentage(amountToPercentage(amt, totalIncome).toFixed(2));
+  }
+
+  function syncBucketFromPercentage(rawValue: string) {
+    const pct = parseAmountInput(rawValue);
+    setDraftPercentage(rawValue);
+    setDraftAmount(String(percentageToAmount(pct, totalIncome)));
+  }
 
   const sumAlloc = useMemo(
     () => allocations.reduce((s, a) => s + a.amount, 0),
@@ -320,14 +312,14 @@ export function BucketCard({
               <input
                 inputMode="decimal"
                 value={draftAmount}
-                onChange={(e) => setDraftAmount(e.target.value)}
+                onChange={(e) => syncBucketFromAmount(e.target.value)}
                 className="min-h-10 w-36 border border-white/15 bg-background px-3 py-2 text-sm"
               />
               <div className="flex items-center gap-1">
                 <input
                   inputMode="decimal"
                   value={draftPercentage}
-                  onChange={(e) => setDraftPercentage(e.target.value)}
+                  onChange={(e) => syncBucketFromPercentage(e.target.value)}
                   className="min-h-10 w-24 border border-white/15 bg-background px-3 py-2 text-sm"
                 />
                 <span className="text-xs text-white/45">%</span>
