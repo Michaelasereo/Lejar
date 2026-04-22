@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { createServerClient } from "@/lib/supabase/server";
-import { prisma } from "@/lib/prisma";
+import { resolveOnboardingStatus } from "@/lib/users/resolve-onboarding-status";
 
 export const metadata: Metadata = {
   title: "Onboarding — Orjar",
@@ -22,11 +22,8 @@ export default async function OnboardingLayout({
     redirect("/login");
   }
 
-  const settings = await prisma.userSettings.findUnique({
-    where: { userId: user.id },
-  });
-
-  if (settings?.isOnboarded) {
+  const isOnboarded = await resolveOnboardingStatus(user.id);
+  if (isOnboarded) {
     redirect("/app/dashboard");
   }
 

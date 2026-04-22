@@ -3,6 +3,7 @@ import { isAdminUserId } from "@/lib/admin/is-admin-user";
 import { createServerClient } from "@/lib/supabase/server";
 import { AppShell } from "@/components/layout/app-shell";
 import { prisma } from "@/lib/prisma";
+import { resolveOnboardingStatus } from "@/lib/users/resolve-onboarding-status";
 
 export default async function AppLayout({
   children,
@@ -18,11 +19,8 @@ export default async function AppLayout({
     redirect("/login");
   }
 
-  const settings = await prisma.userSettings.findUnique({
-    where: { userId: user.id },
-  });
-
-  if (!settings?.isOnboarded) {
+  const isOnboarded = await resolveOnboardingStatus(user.id);
+  if (!isOnboarded) {
     redirect("/onboarding");
   }
 
