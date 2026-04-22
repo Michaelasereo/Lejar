@@ -13,13 +13,22 @@ interface IncomeSourceListProps {
     amount: string;
     effectiveFrom: string;
     thisMonthOnly: boolean;
+    allocationMode: "ADJUST_EXISTING" | "SINGLE_BUCKET" | "NEW_BUCKET";
+    targetBucketId: string;
+    newBucketName: string;
+    newBucketColor: string;
   };
   onAddDraftChange: (next: {
     label: string;
     amount: string;
     effectiveFrom: string;
     thisMonthOnly: boolean;
+    allocationMode: "ADJUST_EXISTING" | "SINGLE_BUCKET" | "NEW_BUCKET";
+    targetBucketId: string;
+    newBucketName: string;
+    newBucketColor: string;
   }) => void;
+  buckets: Array<{ id: string; name: string; color: string }>;
   onRefresh: () => void;
 }
 
@@ -28,6 +37,7 @@ export function IncomeSourceList({
   totalIncome,
   addDraft,
   onAddDraftChange,
+  buckets,
   onRefresh,
 }: IncomeSourceListProps) {
   async function addIncome(e: React.FormEvent) {
@@ -36,6 +46,14 @@ export function IncomeSourceList({
     const amt = parseAmountInput(addDraft.amount);
     if (!label || amt <= 0) {
       toast.error("Enter a label and a positive amount.");
+      return;
+    }
+    if (addDraft.allocationMode === "SINGLE_BUCKET" && !addDraft.targetBucketId) {
+      toast.error("Select a bucket for this income.");
+      return;
+    }
+    if (addDraft.allocationMode === "NEW_BUCKET" && !addDraft.newBucketName.trim()) {
+      toast.error("Enter a name for the new bucket.");
       return;
     }
     const res = await fetch("/api/income", {
@@ -47,7 +65,16 @@ export function IncomeSourceList({
         effectiveFrom: addDraft.effectiveFrom,
         incomeTiming: addDraft.thisMonthOnly ? "MONTH_ONLY" : "RECURRING",
         monthOnlyStorageMode: addDraft.thisMonthOnly ? "BOUNDED_SOURCE" : undefined,
-        allocationDirective: { mode: "ADJUST_EXISTING" },
+        allocationDirective:
+          addDraft.allocationMode === "SINGLE_BUCKET"
+            ? { mode: "SINGLE_BUCKET", bucketId: addDraft.targetBucketId }
+            : addDraft.allocationMode === "NEW_BUCKET"
+              ? {
+                  mode: "NEW_BUCKET",
+                  bucketName: addDraft.newBucketName.trim(),
+                  bucketColor: addDraft.newBucketColor,
+                }
+              : { mode: "ADJUST_EXISTING" },
       }),
     });
     if (!res.ok) {
@@ -67,6 +94,8 @@ export function IncomeSourceList({
       label: "",
       amount: "",
       thisMonthOnly: false,
+      allocationMode: "ADJUST_EXISTING",
+      newBucketName: "",
     });
     onRefresh();
   }
@@ -162,6 +191,84 @@ export function IncomeSourceList({
                 Unchecked = applies from selected month moving forward.
               </p>
             )}
+          </div>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            <label className="flex flex-col gap-1">
+              <span className="text-xs text-white/50">Where should this income go?</span>
+              <select
+                value={addDraft.allocationMode}
+                onChange={(e) =>
+                  onAddDraftChange({
+                    ...addDraft,
+                    allocationMode: e.target.value as
+                      | "ADJUST_EXISTING"
+                      | "SINGLE_BUCKET"
+                      | "NEW_BUCKET",
+                  })
+                }
+                className="min-h-10 border border-white/15 bg-background px-3 py-2 text-sm outline-none focus:border-accent"
+              >
+                <option value="ADJUST_EXISTING">Adjust existing bucket split</option>
+                <option value="SINGLE_BUCKET">Put entire income in one bucket</option>
+                <option value="NEW_BUCKET">Create a new bucket for it</option>
+              </select>
+            </label>
+            {addDraft.allocationMode === "SINGLE_BUCKET" ? (
+              <label className="flex flex-col gap-1">
+                <span className="text-xs text-white/50">Choose bucket</span>
+                <select
+                  value={addDraft.targetBucketId}
+                  onChange={(e) =>
+                    onAddDraftChange({
+                      ...addDraft,
+                      targetBucketId: e.target.value,
+                    })
+                  }
+                  className="min-h-10 border border-white/15 bg-background px-3 py-2 text-sm outline-none focus:border-accent"
+                >
+                  <option value="" disabled>
+                    Select bucket
+                  </option>
+                  {buckets.map((bucket) => (
+                    <option key={bucket.id} value={bucket.id}>
+                      {bucket.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
+            {addDraft.allocationMode === "NEW_BUCKET" ? (
+              <div className="flex flex-col gap-2 sm:col-span-2 sm:flex-row">
+                <label className="flex min-w-[180px] flex-1 flex-col gap-1">
+                  <span className="text-xs text-white/50">New bucket name</span>
+                  <input
+                    value={addDraft.newBucketName}
+                    onChange={(e) =>
+                      onAddDraftChange({
+                        ...addDraft,
+                        newBucketName: e.target.value,
+                      })
+                    }
+                    placeholder="e.g. YouTube subscription"
+                    className="min-h-10 border border-white/15 bg-background px-3 py-2 text-sm outline-none focus:border-accent"
+                  />
+                </label>
+                <label className="flex flex-col gap-1">
+                  <span className="text-xs text-white/50">Color</span>
+                  <input
+                    type="color"
+                    value={addDraft.newBucketColor}
+                    onChange={(e) =>
+                      onAddDraftChange({
+                        ...addDraft,
+                        newBucketColor: e.target.value,
+                      })
+                    }
+                    className="min-h-10 w-16 border border-white/15 bg-background p-1"
+                  />
+                </label>
+              </div>
+            ) : null}
           </div>
         </div>
       </form>

@@ -4,6 +4,7 @@ export const EXPENSE_CATEGORIES = [
   { value: "UTILITIES", label: "Utilities" },
   { value: "HOUSING", label: "Housing & rent" },
   { value: "HEALTH", label: "Health" },
+  { value: "GIFT", label: "Gift" },
   { value: "ENTERTAINMENT", label: "Entertainment" },
   { value: "SUBSCRIPTIONS", label: "Subscriptions" },
   { value: "SHOPPING", label: "Shopping" },

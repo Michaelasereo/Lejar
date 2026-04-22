@@ -16,6 +16,10 @@ const incomeAllocationDirectiveSchema = z.discriminatedUnion("mode", [
     mode: z.literal("ADJUST_EXISTING"),
   }),
   z.object({
+    mode: z.literal("SINGLE_BUCKET"),
+    bucketId: z.string().min(1),
+  }),
+  z.object({
     mode: z.literal("NEW_BUCKET"),
     bucketName: z.string().min(1).max(80),
     bucketColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/),

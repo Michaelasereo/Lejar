@@ -35,7 +35,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
     return NextResponse.json({ error: "No changes" }, { status: 400 });
   }
 
-  if (data.bucketId !== undefined && data.bucketId !== null) {
+  if (data.bucketId !== undefined) {
     const b = await prisma.bucket.findFirst({
       where: { id: data.bucketId, userId: auth.user.id },
     });
@@ -48,7 +48,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
     amount?: Prisma.Decimal;
     category?: string;
     label?: string | null;
-    bucketId?: string | null;
+    bucketId?: string;
     occurredAt?: Date;
   } = {};
 

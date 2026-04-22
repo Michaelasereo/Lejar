@@ -19,7 +19,7 @@ export function AddExpenseForm({ monthKey, buckets, onCreated }: AddExpenseFormP
   const [category, setCategory] = useState<ExpenseCategoryValue>("OTHER");
   const [label, setLabel] = useState("");
   const [amount, setAmount] = useState("");
-  const [bucketId, setBucketId] = useState<string>("");
+  const [bucketId, setBucketId] = useState<string>(buckets[0]?.id ?? "");
   const [occurredAt, setOccurredAt] = useState(() => defaultOccurrenceDateForMonth(monthKey));
   const [submitting, setSubmitting] = useState(false);
 
@@ -27,13 +27,19 @@ export function AddExpenseForm({ monthKey, buckets, onCreated }: AddExpenseFormP
     setOccurredAt(defaultOccurrenceDateForMonth(monthKey));
   }, [monthKey]);
 
+  useEffect(() => {
+    if (!bucketId && buckets[0]?.id) {
+      setBucketId(buckets[0].id);
+    }
+  }, [bucketId, buckets]);
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     const payload = {
       amount: parseAmountInput(amount),
       category,
       label: label.trim() === "" ? undefined : label.trim(),
-      bucketId: bucketId === "" ? null : bucketId,
+      bucketId,
       occurredAt,
     };
 
@@ -64,7 +70,7 @@ export function AddExpenseForm({ monthKey, buckets, onCreated }: AddExpenseFormP
       toast.success("Expense logged");
       setLabel("");
       setAmount("");
-      setBucketId("");
+      setBucketId(buckets[0]?.id ?? "");
       setCategory("OTHER");
       setOccurredAt(defaultOccurrenceDateForMonth(monthKey));
       onCreated();
@@ -123,13 +129,12 @@ export function AddExpenseForm({ monthKey, buckets, onCreated }: AddExpenseFormP
           />
         </label>
         <label className="flex flex-col gap-1.5 text-xs text-white/50">
-          Bucket (optional)
+          Bucket
           <select
             value={bucketId}
             onChange={(e) => setBucketId(e.target.value)}
             className="min-h-11 border border-white/15 bg-background px-3 py-2 text-sm outline-none focus:border-accent"
           >
-            <option value="">— None —</option>
             {buckets.map((b) => (
               <option key={b.id} value={b.id}>
                 {b.name}
@@ -145,7 +150,7 @@ export function AddExpenseForm({ monthKey, buckets, onCreated }: AddExpenseFormP
       )}
       <button
         type="submit"
-        disabled={submitting}
+        disabled={submitting || buckets.length === 0}
         className={cn(
           "mt-4 min-h-11 border border-accent bg-accent px-6 text-sm font-medium text-accent-foreground",
           "hover:bg-accent/90 disabled:opacity-50",

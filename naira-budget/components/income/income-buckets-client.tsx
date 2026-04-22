@@ -20,16 +20,24 @@ interface AddIncomeDraft {
   amount: string;
   effectiveFrom: string;
   thisMonthOnly: boolean;
+  allocationMode: "ADJUST_EXISTING" | "SINGLE_BUCKET" | "NEW_BUCKET";
+  targetBucketId: string;
+  newBucketName: string;
+  newBucketColor: string;
 }
 
 export function IncomeBucketsClient({ initialData }: IncomeBucketsClientProps) {
   const router = useRouter();
-  const currentMonth = formatMonthParam(new Date().getFullYear(), new Date().getMonth() + 1);
+  const currentMonth = initialData.monthKey || formatMonthParam(new Date().getFullYear(), new Date().getMonth() + 1);
   const [addIncome, setAddIncome] = useState<AddIncomeDraft>({
     label: "",
     amount: "",
     effectiveFrom: currentMonth,
     thisMonthOnly: false,
+    allocationMode: "ADJUST_EXISTING",
+    targetBucketId: initialData.buckets[0]?.id ?? "",
+    newBucketName: "",
+    newBucketColor: BUCKET_COLORS[0] ?? "#7C63FD",
   });
   const [addBucket, setAddBucket] = useState<{
     name: string;
@@ -69,7 +77,10 @@ export function IncomeBucketsClient({ initialData }: IncomeBucketsClientProps) {
           effectiveFrom?: string;
           incomeTiming: "MONTH_ONLY" | "RECURRING";
           monthOnlyStorageMode?: "BOUNDED_SOURCE";
-          allocationDirective: { mode: "ADJUST_EXISTING" };
+          allocationDirective:
+            | { mode: "ADJUST_EXISTING" }
+            | { mode: "SINGLE_BUCKET"; bucketId: string }
+            | { mode: "NEW_BUCKET"; bucketName: string; bucketColor: string };
         } = {
           label: addIncome.label.trim(),
           amountMonthly: parseAmountInput(addIncome.amount),
@@ -77,6 +88,18 @@ export function IncomeBucketsClient({ initialData }: IncomeBucketsClientProps) {
           effectiveFrom: addIncome.effectiveFrom,
           allocationDirective: { mode: "ADJUST_EXISTING" },
         };
+        if (addIncome.allocationMode === "SINGLE_BUCKET") {
+          incomePayload.allocationDirective = {
+            mode: "SINGLE_BUCKET",
+            bucketId: addIncome.targetBucketId,
+          };
+        } else if (addIncome.allocationMode === "NEW_BUCKET") {
+          incomePayload.allocationDirective = {
+            mode: "NEW_BUCKET",
+            bucketName: addIncome.newBucketName.trim(),
+            bucketColor: addIncome.newBucketColor,
+          };
+        }
         if (addIncome.thisMonthOnly) {
           incomePayload.monthOnlyStorageMode = "BOUNDED_SOURCE";
         }
@@ -94,6 +117,10 @@ export function IncomeBucketsClient({ initialData }: IncomeBucketsClientProps) {
           amount: "",
           effectiveFrom: currentMonth,
           thisMonthOnly: false,
+          allocationMode: "ADJUST_EXISTING",
+          targetBucketId: initialData.buckets[0]?.id ?? "",
+          newBucketName: "",
+          newBucketColor: BUCKET_COLORS[0] ?? "#7C63FD",
         });
       }
       if (
@@ -148,6 +175,7 @@ export function IncomeBucketsClient({ initialData }: IncomeBucketsClientProps) {
         totalIncome={totalIncome}
         addDraft={addIncome}
         onAddDraftChange={setAddIncome}
+        buckets={initialData.buckets}
         onRefresh={refresh}
       />
 

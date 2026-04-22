@@ -30,14 +30,14 @@ export function ExpenseRow({ row, buckets, onSaved }: ExpenseRowProps) {
   );
   const [draftLabel, setDraftLabel] = useState(row.label ?? "");
   const [draftAmount, setDraftAmount] = useState(String(Math.round(row.amount)));
-  const [draftBucketId, setDraftBucketId] = useState(row.bucketId ?? "");
+  const [draftBucketId, setDraftBucketId] = useState(row.bucketId ?? buckets[0]?.id ?? "");
   const [draftOccurredAt, setDraftOccurredAt] = useState(dateToInputValue(row.occurredAt));
 
   function startEdit() {
     setDraftCategory(isKnownCategory(row.category) ? row.category : "OTHER");
     setDraftLabel(row.label ?? "");
     setDraftAmount(String(Math.round(row.amount)));
-    setDraftBucketId(row.bucketId ?? "");
+    setDraftBucketId(row.bucketId ?? buckets[0]?.id ?? "");
     setDraftOccurredAt(dateToInputValue(row.occurredAt));
     setEditing(true);
   }
@@ -52,6 +52,10 @@ export function ExpenseRow({ row, buckets, onSaved }: ExpenseRowProps) {
       toast.error("Enter a positive amount.");
       return;
     }
+    if (!draftBucketId) {
+      toast.error("Select a bucket.");
+      return;
+    }
 
     const res = await fetch(`/api/expenses/${row.id}`, {
       method: "PATCH",
@@ -60,7 +64,7 @@ export function ExpenseRow({ row, buckets, onSaved }: ExpenseRowProps) {
         amount: amt,
         category: draftCategory,
         label: draftLabel.trim() === "" ? null : draftLabel.trim(),
-        bucketId: draftBucketId === "" ? null : draftBucketId,
+        bucketId: draftBucketId,
         occurredAt: draftOccurredAt,
       }),
     });
@@ -138,7 +142,6 @@ export function ExpenseRow({ row, buckets, onSaved }: ExpenseRowProps) {
               onChange={(e) => setDraftBucketId(e.target.value)}
               className="min-h-10 border border-white/15 bg-background px-2 py-1.5 text-sm"
             >
-              <option value="">— None —</option>
               {buckets.map((b) => (
                 <option key={b.id} value={b.id}>
                   {b.name}
@@ -150,6 +153,7 @@ export function ExpenseRow({ row, buckets, onSaved }: ExpenseRowProps) {
             <button
               type="button"
               onClick={() => void save()}
+              disabled={buckets.length === 0}
               className="inline-flex min-h-10 items-center gap-1 border border-accent bg-accent px-3 text-sm text-accent-foreground"
             >
               <Check className="h-4 w-4" />

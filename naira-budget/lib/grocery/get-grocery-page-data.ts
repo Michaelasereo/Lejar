@@ -1,4 +1,7 @@
 import { prisma } from "@/lib/prisma";
+import { applyMonthlyBucketOverridesToBudgets } from "@/lib/income/monthly-bucket-overrides";
+import { monthKeyFromDate, monthRange } from "@/lib/dashboard/get-dashboard-data";
+import { getIncomeForMonth } from "@/lib/utils/income";
 import { toNumber } from "@/lib/income/money";
 
 export interface GroceryItemRecord {
@@ -13,7 +16,14 @@ export interface GroceryItemRecord {
 }
 
 export interface GroceryPageData {
+  monthKey: string;
   items: GroceryItemRecord[];
+  bucketsForLogging: Array<{
+    id: string;
+    name: string;
+    color: string;
+    remaining: number;
+  }>;
   pricedTotal: number;
   pricedCount: number;
   deferredCount: number;
@@ -24,10 +34,75 @@ export interface GroceryPageData {
 }
 
 export async function getGroceryPageData(userId: string): Promise<GroceryPageData> {
-  const rows = await prisma.groceryItem.findMany({
-    where: { userId },
-    orderBy: [{ isPurchased: "asc" }, { sortOrder: "asc" }, { createdAt: "asc" }],
-  });
+  const monthKey = monthKeyFromDate(new Date());
+  const range = monthRange(monthKey);
+  if (!range) {
+    throw new Error("Invalid month range for grocery data");
+  }
+  const [rows, bucketRows, expenses, monthIncome] = await Promise.all([
+    prisma.groceryItem.findMany({
+      where: { userId },
+      orderBy: [{ isPurchased: "asc" }, { sortOrder: "asc" }, { createdAt: "asc" }],
+    }),
+    prisma.bucket.findMany({
+      where: { userId },
+      orderBy: { sortOrder: "asc" },
+      select: {
+        id: true,
+        name: true,
+        color: true,
+        percentage: true,
+        allocatedAmount: true,
+      },
+    }),
+    prisma.expense.findMany({
+      where: {
+        userId,
+        occurredAt: { gte: range.start, lte: range.end },
+        bucketId: { not: null },
+      },
+      select: {
+        bucketId: true,
+        amount: true,
+      },
+    }),
+    getIncomeForMonth(userId, range.start.getFullYear(), range.start.getMonth() + 1),
+  ]);
+
+  const bucketBase = bucketRows.map((bucket) => ({
+    id: bucket.id,
+    name: bucket.name,
+    color: bucket.color,
+    allocatedAmount:
+      typeof bucket.percentage === "number" && bucket.percentage > 0
+        ? Math.round((bucket.percentage / 100) * monthIncome)
+        : toNumber(bucket.allocatedAmount),
+    percentage: bucket.percentage ?? 0,
+  }));
+  const monthScopedBuckets = await applyMonthlyBucketOverridesToBudgets(
+    prisma,
+    userId,
+    range.start.getFullYear(),
+    range.start.getMonth() + 1,
+    bucketBase,
+  );
+  const spentByBucket = new Map<string, number>();
+  for (const expense of expenses) {
+    if (!expense.bucketId) continue;
+    spentByBucket.set(
+      expense.bucketId,
+      (spentByBucket.get(expense.bucketId) ?? 0) + toNumber(expense.amount),
+    );
+  }
+  const bucketsForLogging = monthScopedBuckets.map((bucket) => ({
+    id: bucket.id,
+    name: bucket.name,
+    color: bucket.color,
+    remaining: Math.max(
+      0,
+      Math.round(bucket.allocatedAmount - (spentByBucket.get(bucket.id) ?? 0)),
+    ),
+  }));
 
   const items: GroceryItemRecord[] = rows.map((r) => ({
     id: r.id,
@@ -69,7 +144,9 @@ export async function getGroceryPageData(userId: string): Promise<GroceryPageDat
   }
 
   return {
+    monthKey,
     items,
+    bucketsForLogging,
     pricedTotal,
     pricedCount,
     deferredCount,

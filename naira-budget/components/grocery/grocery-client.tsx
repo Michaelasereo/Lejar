@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { AddGroceryItemForm } from "@/components/grocery/add-grocery-item-form";
@@ -22,6 +22,8 @@ export function GroceryClient({ data }: GroceryClientProps) {
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [label, setLabel] = useState("Grocery run");
   const [note, setNote] = useState("");
+  const [spendMode, setSpendMode] = useState<"BUCKET" | "TOTAL_BUCKET">("BUCKET");
+  const [bucketId, setBucketId] = useState(data.bucketsForLogging[0]?.id ?? "");
   const [submitting, setSubmitting] = useState(false);
 
   function refresh() {
@@ -37,14 +39,50 @@ export function GroceryClient({ data }: GroceryClientProps) {
     [reviewItems, selectedIds],
   );
   const selectedTotal = selectedItems.reduce((sum, item) => sum + (item.estimatedPrice ?? 0), 0);
+  const eligibleBuckets = data.bucketsForLogging.filter((bucket) => bucket.remaining >= selectedTotal);
+  const totalBucketRemaining = data.bucketsForLogging.reduce((sum, bucket) => sum + bucket.remaining, 0);
+  const onlyTotalBucket = selectedTotal > 0 && eligibleBuckets.length === 0;
 
   function openReview() {
     setSelectedIds(selectableIds);
+    const nextSelectedTotal = reviewItems
+      .filter((item) => selectableIds.includes(item.id))
+      .reduce((sum, item) => sum + (item.estimatedPrice ?? 0), 0);
+    const nextEligibleBuckets = data.bucketsForLogging.filter((bucket) => bucket.remaining >= nextSelectedTotal);
+    if (nextEligibleBuckets.length === 0) {
+      setSpendMode("TOTAL_BUCKET");
+      setBucketId("");
+    } else {
+      setSpendMode("BUCKET");
+      setBucketId(nextEligibleBuckets[0]?.id ?? "");
+    }
     setReviewOpen(true);
   }
 
+  useEffect(() => {
+    if (reviewOpen && onlyTotalBucket) {
+      setSpendMode("TOTAL_BUCKET");
+      setBucketId("");
+      return;
+    }
+    if (reviewOpen && spendMode === "BUCKET" && bucketId) {
+      const stillEligible = eligibleBuckets.some((bucket) => bucket.id === bucketId);
+      if (!stillEligible) {
+        setBucketId(eligibleBuckets[0]?.id ?? "");
+      }
+    }
+  }, [reviewOpen, onlyTotalBucket, spendMode, bucketId, eligibleBuckets]);
+
   async function logSelected() {
     if (selectedIds.length === 0 || selectedTotal <= 0) return;
+    if (spendMode === "BUCKET" && !bucketId) {
+      toast.error("Select a bucket to spend from.");
+      return;
+    }
+    if (spendMode === "TOTAL_BUCKET" && totalBucketRemaining < selectedTotal) {
+      toast.error("Total bucket balance is not enough for this expense.");
+      return;
+    }
     setSubmitting(true);
     try {
       const res = await fetch("/api/grocery/log-selected", {
@@ -56,6 +94,8 @@ export function GroceryClient({ data }: GroceryClientProps) {
           date,
           label: label.trim() || "Grocery run",
           note: note.trim() || undefined,
+          spendMode,
+          bucketId: spendMode === "BUCKET" ? bucketId : undefined,
         }),
       });
       if (!res.ok) {
@@ -106,23 +146,6 @@ export function GroceryClient({ data }: GroceryClientProps) {
         </p>
       )}
 
-      {data.checkedPricedCount > 0 && (
-        <div className="space-y-2">
-          <button
-            type="button"
-            onClick={openReview}
-            className="min-h-11 border border-accent/50 bg-accent/10 px-4 text-sm text-accent"
-          >
-            Review items to log ({data.checkedPricedCount} items · {formatNaira(data.checkedPricedTotal)})
-          </button>
-          {data.checkedNoPriceCount > 0 && (
-            <p className="text-xs text-white/35">
-              {data.checkedNoPriceCount} ticked items have no price - add prices to include them
-            </p>
-          )}
-        </div>
-      )}
-
       <AddGroceryItemForm onCreated={refresh} />
 
       <section className="border border-white/10 bg-card">
@@ -135,6 +158,24 @@ export function GroceryClient({ data }: GroceryClientProps) {
             {pending} open · {done} done · {data.loggedCount} logged to expenses
           </p>
         </div>
+        {data.checkedPricedCount > 0 && (
+          <div className="border-b border-white/10 px-4 py-3">
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={openReview}
+                className="min-h-11 border border-accent/50 bg-accent/10 px-4 text-sm text-accent"
+              >
+                Review items to log ({data.checkedPricedCount} items · {formatNaira(data.checkedPricedTotal)})
+              </button>
+              {data.checkedNoPriceCount > 0 && (
+                <p className="text-xs text-white/35">
+                  {data.checkedNoPriceCount} ticked items have no price - add prices to include them
+                </p>
+              )}
+            </div>
+          </div>
+        )}
         <div className="px-4">
           {data.items.length === 0 ? (
             <p className="py-10 text-sm text-white/45">
@@ -237,6 +278,49 @@ export function GroceryClient({ data }: GroceryClientProps) {
                 placeholder="Optional"
                 className="min-h-10 border border-white/15 bg-background px-2 py-1.5 text-sm"
               />
+            </label>
+            <label className="flex flex-col gap-1 text-xs text-white/50 md:col-span-2">
+              Spend from
+              {onlyTotalBucket ? (
+                <div className="space-y-1">
+                  <select
+                    value="TOTAL_BUCKET"
+                    onChange={() => setSpendMode("TOTAL_BUCKET")}
+                    className="min-h-10 border border-white/15 bg-background px-2 py-1.5 text-sm"
+                  >
+                    <option value="TOTAL_BUCKET">
+                      Total bucket ({formatNaira(totalBucketRemaining)} left)
+                    </option>
+                  </select>
+                  <p className="text-[11px] text-white/40">
+                    No single bucket can cover this. Total bucket will spend from highest to
+                    lowest remaining.
+                  </p>
+                </div>
+              ) : (
+                <select
+                  value={spendMode === "BUCKET" ? bucketId : "TOTAL_BUCKET"}
+                  onChange={(e) => {
+                    if (e.target.value === "TOTAL_BUCKET") {
+                      setSpendMode("TOTAL_BUCKET");
+                      setBucketId("");
+                      return;
+                    }
+                    setSpendMode("BUCKET");
+                    setBucketId(e.target.value);
+                  }}
+                  className="min-h-10 border border-white/15 bg-background px-2 py-1.5 text-sm"
+                >
+                  {eligibleBuckets.map((bucket) => (
+                    <option key={bucket.id} value={bucket.id}>
+                      {bucket.name} ({formatNaira(bucket.remaining)} left)
+                    </option>
+                  ))}
+                  <option value="TOTAL_BUCKET">
+                    Total bucket ({formatNaira(totalBucketRemaining)} left)
+                  </option>
+                </select>
+              )}
             </label>
           </div>
           <div className="mt-4 flex gap-2">

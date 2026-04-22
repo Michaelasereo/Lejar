@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { applyMonthlyBucketOverridesToBudgets } from "@/lib/income/monthly-bucket-overrides";
 import { projectWealthBars } from "@/lib/utils/projection";
 import { getIncomeForMonth } from "@/lib/utils/income";
 import { calculateUnspentCarryover } from "@/lib/utils/networth";
@@ -199,17 +200,26 @@ export async function getDashboardData(
     name: b.name,
     color: b.color,
     allocated: 0,
+    allocatedAmount: toNumber(b.allocatedAmount),
     percentage:
       typeof b.percentage === "number"
         ? b.percentage
         : b.allocations.reduce((sum, a) => sum + (a.percentage ?? 0), 0),
     spent: spentByBucket.get(b.id) ?? 0,
   }));
-  for (const bucket of bucketRows) {
+  const [rangeYear, rangeMonth] = [range.start.getFullYear(), range.start.getMonth() + 1];
+  const monthScopedRows = await applyMonthlyBucketOverridesToBudgets(
+    prisma,
+    userId,
+    rangeYear,
+    rangeMonth,
+    bucketRows,
+  );
+  for (const bucket of monthScopedRows) {
     bucket.allocated =
       bucket.percentage > 0
         ? Math.round((bucket.percentage / 100) * totalIncome)
-        : toNumber(buckets.find((b) => b.id === bucket.id)?.allocatedAmount ?? 0);
+        : bucket.allocatedAmount;
     budgetTotal += bucket.allocated;
   }
 
@@ -336,7 +346,7 @@ export async function getDashboardData(
     spentThisMonth,
     savingsRatePercent,
     budgetTotal: budgetTotal > 0 ? budgetTotal : totalIncome,
-    buckets: bucketRows,
+    buckets: monthScopedRows,
     rentJar: rentOut,
     pinnedJars,
     portfolioTotal,

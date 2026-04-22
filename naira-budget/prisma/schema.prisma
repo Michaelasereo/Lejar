@@ -50,6 +50,7 @@ model Bucket {
 
   expenses    Expense[]
   allocations BucketAllocation[]
+  monthlyOverrides MonthlyBucketOverride[]
 
   @@index([userId])
 }
@@ -65,6 +66,23 @@ model MonthlyIncomeOverride {
 
   @@unique([userId, monthKey])
   @@index([userId])
+}
+
+model MonthlyBucketOverride {
+  id              String   @id @default(cuid())
+  userId          String
+  monthKey        String
+  bucketId        String
+  allocatedAmount Decimal  @db.Decimal(14, 2)
+  percentage      Float
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  bucket Bucket @relation(fields: [bucketId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, monthKey, bucketId])
+  @@index([userId, monthKey])
+  @@index([bucketId])
 }
 
 model BucketAllocation {

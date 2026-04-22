@@ -1,9 +1,12 @@
 import { prisma } from "@/lib/prisma";
 import { toNumber } from "@/lib/income/money";
+import { applyMonthlyBucketOverridesToBudgets } from "@/lib/income/monthly-bucket-overrides";
 import { amountToPercentage } from "@/lib/utils/currency";
 import { getIncomeActiveForMonth } from "@/lib/utils/income";
+import { parseMonthParam } from "@/lib/utils/dates";
 
 export interface IncomePageData {
+  monthKey: string;
   incomeSources: Array<{
     id: string;
     label: string;
@@ -33,12 +36,12 @@ export interface IncomePageData {
   remaining: number;
 }
 
-export async function getIncomePageData(userId: string): Promise<IncomePageData> {
-  const now = new Date();
+export async function getIncomePageData(userId: string, monthKey?: string): Promise<IncomePageData> {
+  const parsedMonth = parseMonthParam(monthKey);
   const incomeSources = await getIncomeActiveForMonth(
     userId,
-    now.getFullYear(),
-    now.getMonth() + 1,
+    parsedMonth.year,
+    parsedMonth.month,
   );
   const totalIncome = incomeSources.reduce((s, r) => s + toNumber(r.amountMonthly), 0);
 
@@ -101,22 +104,31 @@ export async function getIncomePageData(userId: string): Promise<IncomePageData>
     })),
   }));
 
-  for (const bucket of bucketRows) {
+  const bucketRowsWithOverrides = await applyMonthlyBucketOverridesToBudgets(
+    prisma,
+    userId,
+    parsedMonth.year,
+    parsedMonth.month,
+    bucketRows,
+  );
+
+  for (const bucket of bucketRowsWithOverrides) {
     bucket.hasAllocationMismatch =
       bucket.allocations.length > 0 &&
       Math.abs(bucket.percentage - bucket.allocationPercentage) > 0.01;
   }
 
-  const totalAllocatedPercentage = bucketRows.reduce(
+  const totalAllocatedPercentage = bucketRowsWithOverrides.reduce(
     (sum, bucket) => sum + bucket.percentage,
     0,
   );
-  const totalBucketAllocated = bucketRows.reduce((s, b) => s + b.allocatedAmount, 0);
+  const totalBucketAllocated = bucketRowsWithOverrides.reduce((s, b) => s + b.allocatedAmount, 0);
   const remaining = totalIncome - totalBucketAllocated;
 
   return {
+    monthKey: `${parsedMonth.year}-${String(parsedMonth.month).padStart(2, "0")}`,
     incomeSources: sources,
-    buckets: bucketRows,
+    buckets: bucketRowsWithOverrides,
     totalIncome,
     totalBucketAllocated,
     totalAllocatedPercentage,

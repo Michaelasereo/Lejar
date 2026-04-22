@@ -26,15 +26,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid date" }, { status: 400 });
   }
 
-  let bucketId: string | null = null;
-  if (body.bucketId !== undefined && body.bucketId !== null) {
-    const b = await prisma.bucket.findFirst({
-      where: { id: body.bucketId, userId: auth.user.id },
-    });
-    if (!b) {
-      return NextResponse.json({ error: "Bucket not found" }, { status: 400 });
-    }
-    bucketId = body.bucketId;
+  const b = await prisma.bucket.findFirst({
+    where: { id: body.bucketId, userId: auth.user.id },
+  });
+  if (!b) {
+    return NextResponse.json({ error: "Bucket not found" }, { status: 400 });
   }
 
   const labelTrim = body.label?.trim();
@@ -44,7 +40,7 @@ export async function POST(req: NextRequest) {
     const row = await prisma.expense.create({
       data: {
         userId: auth.user.id,
-        bucketId,
+        bucketId: body.bucketId,
         amount: new Prisma.Decimal(body.amount),
         category: body.category,
         label,
