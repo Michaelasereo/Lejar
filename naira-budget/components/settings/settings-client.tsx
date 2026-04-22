@@ -6,7 +6,7 @@ import Link from "next/link";
 import { LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { SettingsPageData } from "@/lib/settings/get-settings-page-data";
-import { formatNaira } from "@/lib/utils/currency";
+import { amountToPercentage, formatNaira, percentageToAmount } from "@/lib/utils/currency";
 
 interface SettingsClientProps {
   data: SettingsPageData;
@@ -20,6 +20,16 @@ export function SettingsClient({ data }: SettingsClientProps) {
   const [savingRate, setSavingRate] = useState(false);
   const [bucketDrafts, setBucketDrafts] = useState<Record<string, string>>(
     Object.fromEntries(data.buckets.map((bucket) => [bucket.id, bucket.percentage.toFixed(2)])),
+  );
+  const totalIncome = data.currentIncome.reduce((sum, income) => sum + income.amountMonthly, 0);
+  const [splitInputMode, setSplitInputMode] = useState<"percentage" | "amount">("percentage");
+  const [bucketAmountDrafts, setBucketAmountDrafts] = useState<Record<string, string>>(
+    Object.fromEntries(
+      data.buckets.map((bucket) => [
+        bucket.id,
+        String(percentageToAmount(bucket.percentage, totalIncome)),
+      ]),
+    ),
   );
   const [bucketNameDrafts, setBucketNameDrafts] = useState<Record<string, string>>(
     Object.fromEntries(data.buckets.map((bucket) => [bucket.id, bucket.name])),
@@ -57,6 +67,26 @@ export function SettingsClient({ data }: SettingsClientProps) {
   );
   const remainingPercentage = 100 - bucketTotal;
   const bucketOver = remainingPercentage < -0.01;
+  const totalAllocatedAmount = percentageToAmount(bucketTotal, totalIncome);
+  const remainingAmount = totalIncome - totalAllocatedAmount;
+
+  function updateFromPercentage(bucketId: string, rawValue: string) {
+    const pct = Number(rawValue) || 0;
+    setBucketDrafts((prev) => ({ ...prev, [bucketId]: rawValue }));
+    setBucketAmountDrafts((prev) => ({
+      ...prev,
+      [bucketId]: String(percentageToAmount(pct, totalIncome)),
+    }));
+  }
+
+  function updateFromAmount(bucketId: string, rawValue: string) {
+    const amount = Number(rawValue) || 0;
+    setBucketAmountDrafts((prev) => ({ ...prev, [bucketId]: rawValue }));
+    setBucketDrafts((prev) => ({
+      ...prev,
+      [bucketId]: amountToPercentage(amount, totalIncome).toFixed(2),
+    }));
+  }
 
   async function saveBuckets() {
     if (bucketOver) return;
@@ -166,6 +196,28 @@ export function SettingsClient({ data }: SettingsClientProps) {
           <p className="text-white/50">
             Setting a percentage makes each bucket adapt to the selected month&apos;s income.
           </p>
+          <div className="inline-flex border border-white/15 bg-background/40 p-1">
+            <button
+              type="button"
+              onClick={() => setSplitInputMode("percentage")}
+              className={`min-h-9 px-3 text-xs ${
+                splitInputMode === "percentage"
+                  ? "bg-accent text-accent-foreground"
+                  : "text-white/65"
+              }`}
+            >
+              Percentage
+            </button>
+            <button
+              type="button"
+              onClick={() => setSplitInputMode("amount")}
+              className={`min-h-9 px-3 text-xs ${
+                splitInputMode === "amount" ? "bg-accent text-accent-foreground" : "text-white/65"
+              }`}
+            >
+              Amount
+            </button>
+          </div>
           {data.buckets.map((bucket) => (
             <div key={bucket.id} className="grid grid-cols-[auto_1fr_auto_auto] items-center gap-3">
               <span
@@ -183,18 +235,30 @@ export function SettingsClient({ data }: SettingsClientProps) {
               />
               <input
                 inputMode="decimal"
-                value={bucketDrafts[bucket.id] ?? ""}
+                value={
+                  splitInputMode === "percentage"
+                    ? bucketDrafts[bucket.id] ?? ""
+                    : bucketAmountDrafts[bucket.id] ?? ""
+                }
                 onChange={(e) =>
-                  setBucketDrafts((prev) => ({ ...prev, [bucket.id]: e.target.value }))
+                  splitInputMode === "percentage"
+                    ? updateFromPercentage(bucket.id, e.target.value)
+                    : updateFromAmount(bucket.id, e.target.value)
                 }
                 className="h-9 w-20 border border-white/15 bg-background px-2 text-right text-sm"
               />
-              <span className="text-white/45">%</span>
+              <span className="text-white/45">{splitInputMode === "percentage" ? "%" : "₦"}</span>
             </div>
           ))}
-          <p className={bucketOver ? "text-red-400" : "text-white/45"}>
-            Total {bucketTotal.toFixed(2)}% · Remaining {remainingPercentage.toFixed(2)}%
-          </p>
+          {splitInputMode === "percentage" ? (
+            <p className={bucketOver ? "text-red-400" : "text-white/45"}>
+              Total {bucketTotal.toFixed(2)}% · Remaining {remainingPercentage.toFixed(2)}%
+            </p>
+          ) : (
+            <p className={bucketOver ? "text-red-400" : "text-white/45"}>
+              Total {formatNaira(totalAllocatedAmount)} · Remaining {formatNaira(remainingAmount)}
+            </p>
+          )}
           <button
             type="button"
             disabled={savingBuckets || bucketOver}

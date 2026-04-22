@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import type { IncomePageData } from "@/lib/income/get-income-page-data";
 import { BUCKET_COLORS } from "@/lib/income/constants";
-import { formatMonthParam, parseMonthParam } from "@/lib/utils/dates";
+import { formatMonthParam } from "@/lib/utils/dates";
 import { parseAmountInput } from "@/lib/income/money";
 import { BalanceIndicator } from "@/components/income/balance-indicator";
 import { BucketList } from "@/components/income/bucket-list";
@@ -19,12 +19,8 @@ interface AddIncomeDraft {
   label: string;
   amount: string;
   effectiveFrom: string;
-  incomeTiming: "MONTH_ONLY" | "RECURRING" | "DURATION";
+  thisMonthOnly: boolean;
   monthOnlyStorageMode: "OVERRIDE" | "BOUNDED_SOURCE";
-  effectiveTo: string;
-  allocationMode: "ADJUST_EXISTING" | "NEW_BUCKET";
-  newBucketName: string;
-  newBucketColor: string;
 }
 
 export function IncomeBucketsClient({ initialData }: IncomeBucketsClientProps) {
@@ -34,12 +30,8 @@ export function IncomeBucketsClient({ initialData }: IncomeBucketsClientProps) {
     label: "",
     amount: "",
     effectiveFrom: currentMonth,
-    incomeTiming: "RECURRING" as "MONTH_ONLY" | "RECURRING" | "DURATION",
-    monthOnlyStorageMode: "OVERRIDE" as "OVERRIDE" | "BOUNDED_SOURCE",
-    effectiveTo: currentMonth,
-    allocationMode: "ADJUST_EXISTING" as "ADJUST_EXISTING" | "NEW_BUCKET",
-    newBucketName: "",
-    newBucketColor: BUCKET_COLORS[0] ?? "#7C63FD",
+    thisMonthOnly: false,
+    monthOnlyStorageMode: "OVERRIDE",
   });
   const [addBucket, setAddBucket] = useState<{
     name: string;
@@ -73,46 +65,22 @@ export function IncomeBucketsClient({ initialData }: IncomeBucketsClientProps) {
     if (!balanced || !dirty) return;
     try {
       if (addIncome.label.trim() && parseAmountInput(addIncome.amount) > 0) {
-        if (addIncome.allocationMode === "NEW_BUCKET" && !addIncome.newBucketName.trim()) {
-          throw new Error("Enter a new bucket name for this income.");
-        }
         const incomePayload: {
           label: string;
           amountMonthly: number;
           effectiveFrom?: string;
-          incomeTiming: "MONTH_ONLY" | "RECURRING" | "DURATION";
+          incomeTiming: "MONTH_ONLY" | "RECURRING";
           monthOnlyStorageMode?: "OVERRIDE" | "BOUNDED_SOURCE";
-          effectiveTo?: string;
-          allocationDirective:
-            | { mode: "ADJUST_EXISTING" }
-            | { mode: "NEW_BUCKET"; bucketName: string; bucketColor: string };
+          allocationDirective: { mode: "ADJUST_EXISTING" };
         } = {
           label: addIncome.label.trim(),
           amountMonthly: parseAmountInput(addIncome.amount),
-          incomeTiming: addIncome.incomeTiming,
+          incomeTiming: addIncome.thisMonthOnly ? "MONTH_ONLY" : "RECURRING",
           effectiveFrom: addIncome.effectiveFrom,
-          allocationDirective:
-            addIncome.allocationMode === "NEW_BUCKET"
-              ? {
-                  mode: "NEW_BUCKET",
-                  bucketName: addIncome.newBucketName.trim(),
-                  bucketColor: addIncome.newBucketColor,
-                }
-              : { mode: "ADJUST_EXISTING" },
+          allocationDirective: { mode: "ADJUST_EXISTING" },
         };
-        if (addIncome.incomeTiming === "MONTH_ONLY") {
+        if (addIncome.thisMonthOnly) {
           incomePayload.monthOnlyStorageMode = addIncome.monthOnlyStorageMode;
-        }
-        if (addIncome.incomeTiming === "DURATION") {
-          const from = parseMonthParam(addIncome.effectiveFrom);
-          const to = parseMonthParam(addIncome.effectiveTo);
-          if (
-            to.year < from.year ||
-            (to.year === from.year && to.month < from.month)
-          ) {
-            throw new Error("Duration end month cannot be before start month.");
-          }
-          incomePayload.effectiveTo = addIncome.effectiveTo;
         }
         const res = await fetch("/api/income", {
           method: "POST",
@@ -127,12 +95,8 @@ export function IncomeBucketsClient({ initialData }: IncomeBucketsClientProps) {
           label: "",
           amount: "",
           effectiveFrom: currentMonth,
-          incomeTiming: "RECURRING",
+          thisMonthOnly: false,
           monthOnlyStorageMode: "OVERRIDE",
-          effectiveTo: currentMonth,
-          allocationMode: "ADJUST_EXISTING",
-          newBucketName: "",
-          newBucketColor: BUCKET_COLORS[0] ?? "#7C63FD",
         });
       }
       if (
