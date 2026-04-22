@@ -4,7 +4,11 @@ import { useEffect, useReducer, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
-import { formatNaira } from "@/lib/utils/currency";
+import {
+  amountToPercentage,
+  formatNaira,
+  percentageToAmount,
+} from "@/lib/utils/currency";
 import { cn } from "@/lib/utils/cn";
 
 const STORAGE_KEY = "nb-onboarding-v1";
@@ -204,9 +208,14 @@ function sumIncomeNaira(income: IncomeRow[]): number {
 
 function bucketNaira(b: BucketRow, totalIncome: number): number {
   if (b.mode === "percent") {
-    return (parseAmount(b.amount) / 100) * totalIncome;
+    return percentageToAmount(parseAmount(b.amount), totalIncome);
   }
   return parseAmount(b.amount);
+}
+
+function bucketPercentage(b: BucketRow, totalIncome: number): number {
+  if (b.mode === "percent") return parseAmount(b.amount);
+  return amountToPercentage(parseAmount(b.amount), totalIncome);
 }
 
 function sumBucketsNaira(buckets: BucketRow[], totalIncome: number): number {
@@ -249,8 +258,11 @@ export function OnboardingWizard() {
 
   const totalIncome = sumIncomeNaira(state.income);
   const allocated = sumBucketsNaira(state.buckets, totalIncome);
-  const remainder = totalIncome - allocated;
-  const balanced = totalIncome > 0 && Math.abs(remainder) < 0.01;
+  const totalBucketPercentage = state.buckets.reduce(
+    (sum, bucket) => sum + bucketPercentage(bucket, totalIncome),
+    0,
+  );
+  const balanced = totalIncome > 0 && Math.abs(totalBucketPercentage - 100) < 0.01;
 
   const canNextStep0 = (() => {
     const valid = state.income.filter(
@@ -303,6 +315,7 @@ export function OnboardingWizard() {
         buckets: state.buckets.map((b) => ({
           name: b.name.trim(),
           color: b.color,
+          percentage: bucketPercentage(b, totalIncome),
           amount: bucketNaira(b, totalIncome),
         })),
       };
@@ -581,9 +594,13 @@ export function OnboardingWizard() {
                           </button>
                           {b.mode === "percent" ? (
                             <span className="text-xs text-white/40">
-                              ≈ {formatNaira(bucketNaira(b, totalIncome))}
+                              = {formatNaira(bucketNaira(b, totalIncome))}
                             </span>
-                          ) : null}
+                          ) : (
+                            <span className="text-xs text-white/40">
+                              = {bucketPercentage(b, totalIncome).toFixed(2)}%
+                            </span>
+                          )}
                         </div>
                       </div>
                       <button
@@ -619,26 +636,23 @@ export function OnboardingWizard() {
                       "tabular-nums",
                       balanced
                         ? "text-accent"
-                        : remainder > 0
+                        : totalBucketPercentage < 100
                           ? "text-amber-400"
                           : "text-red-400",
                     )}
                   >
                     {balanced
-                      ? "✓ All income allocated"
-                      : remainder > 0
-                        ? `${formatNaira(remainder)} remaining`
-                        : `${formatNaira(Math.abs(remainder))} over`}
+                      ? "100% allocated ✓"
+                      : totalBucketPercentage > 100
+                        ? `${totalBucketPercentage.toFixed(2)}% allocated`
+                        : `${totalBucketPercentage.toFixed(2)}% allocated`}
                   </span>
                 </div>
                 <div className="h-2 w-full bg-white/5">
                   <div
                     className="h-full bg-accent transition-all duration-300"
                     style={{
-                      width:
-                        totalIncome > 0
-                          ? `${Math.min(100, (allocated / totalIncome) * 100)}%`
-                          : "0%",
+                      width: `${Math.min(100, Math.max(0, totalBucketPercentage))}%`,
                     }}
                   />
                 </div>

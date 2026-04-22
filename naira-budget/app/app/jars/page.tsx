@@ -34,19 +34,33 @@ export default async function JarsPage() {
       _count: { select: { contributions: true } },
     },
   });
-  const groupJars = await prisma.groupSavingsJar.findMany({
-    where: {
-      OR: [
-        { createdById: user.id },
-        { members: { some: { userId: user.id, status: "ACTIVE" } } },
-      ],
-    },
-    include: {
-      members: true,
-      contributions: true,
-    },
-    orderBy: { createdAt: "desc" },
-  });
+  let groupJars: Array<{
+    id: string;
+    name: string;
+    emoji: string;
+    targetAmount: { toString(): string };
+    createdById: string;
+    members: Array<{ id: string }>;
+    contributions: Array<{ amount: { toString(): string } }>;
+  }> = [];
+
+  try {
+    groupJars = await prisma.groupSavingsJar.findMany({
+      where: {
+        OR: [
+          { createdById: user.id },
+          { members: { some: { userId: user.id, status: "ACTIVE" } } },
+        ],
+      },
+      include: {
+        members: true,
+        contributions: true,
+      },
+      orderBy: { createdAt: "desc" },
+    });
+  } catch (error) {
+    console.error("[jars/page] group jars unavailable", { userId: user.id, error });
+  }
 
   return (
     <>

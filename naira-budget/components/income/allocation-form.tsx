@@ -3,6 +3,11 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import {
+  amountToPercentage,
+  formatNaira,
+  percentageToAmount,
+} from "@/lib/utils/currency";
+import {
   ALLOCATION_PLATFORMS,
   ALLOCATION_TYPES,
 } from "@/lib/income/constants";
@@ -11,13 +16,14 @@ import { cn } from "@/lib/utils/cn";
 
 interface AllocationFormProps {
   bucketId: string;
-  /** Max amount this allocation can take (remaining cap inside bucket). */
-  maxAmount: number;
+  totalIncome: number;
   onCreated: () => void;
 }
 
-export function AllocationForm({ bucketId, maxAmount, onCreated }: AllocationFormProps) {
+export function AllocationForm({ bucketId, totalIncome, onCreated }: AllocationFormProps) {
   const [label, setLabel] = useState("");
+  const [mode, setMode] = useState<"percent" | "amount">("percent");
+  const [percentage, setPercentage] = useState("");
   const [amount, setAmount] = useState("");
   const [platform, setPlatform] = useState<(typeof ALLOCATION_PLATFORMS)[number]["value"]>(
     "OTHER",
@@ -29,13 +35,12 @@ export function AllocationForm({ bucketId, maxAmount, onCreated }: AllocationFor
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    const amt = parseAmountInput(amount);
-    if (!label.trim() || amt <= 0) {
-      toast.error("Enter a label and a positive amount.");
-      return;
-    }
-    if (amt > maxAmount + 1e-9) {
-      toast.error("Amount exceeds what’s left in this bucket.");
+    const pct =
+      mode === "percent"
+        ? parseAmountInput(percentage)
+        : amountToPercentage(parseAmountInput(amount), totalIncome);
+    if (!label.trim() || pct <= 0 || pct > 100) {
+      toast.error("Enter a label and a valid percentage.");
       return;
     }
     setSubmitting(true);
@@ -45,7 +50,7 @@ export function AllocationForm({ bucketId, maxAmount, onCreated }: AllocationFor
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           label: label.trim(),
-          amount: amt,
+          percentage: pct,
           platform,
           allocationType,
         }),
@@ -57,6 +62,7 @@ export function AllocationForm({ bucketId, maxAmount, onCreated }: AllocationFor
       }
       toast.success("Allocation added");
       setLabel("");
+      setPercentage("");
       setAmount("");
       setPlatform("OTHER");
       setAllocationType("SPENDING");
@@ -65,6 +71,13 @@ export function AllocationForm({ bucketId, maxAmount, onCreated }: AllocationFor
       setSubmitting(false);
     }
   }
+
+  const derivedAmount =
+    mode === "percent"
+      ? percentageToAmount(parseAmountInput(percentage), totalIncome)
+      : parseAmountInput(amount);
+  const displayPct =
+    mode === "percent" ? parseAmountInput(percentage) : amountToPercentage(derivedAmount, totalIncome);
 
   return (
     <form
@@ -79,13 +92,54 @@ export function AllocationForm({ bucketId, maxAmount, onCreated }: AllocationFor
           placeholder="Label"
           className="min-h-10 border border-white/15 bg-background px-3 py-2 text-sm outline-none focus:border-accent"
         />
-        <input
-          inputMode="decimal"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          placeholder={`Max ${maxAmount.toLocaleString("en-NG")}`}
-          className="min-h-10 border border-white/15 bg-background px-3 py-2 text-sm outline-none focus:border-accent"
-        />
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setMode("percent")}
+            className={cn(
+              "min-h-10 border px-3 text-xs",
+              mode === "percent" ? "border-accent text-accent" : "border-white/15 text-white/50",
+            )}
+          >
+            %
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode("amount")}
+            className={cn(
+              "min-h-10 border px-3 text-xs",
+              mode === "amount" ? "border-accent text-accent" : "border-white/15 text-white/50",
+            )}
+          >
+            ₦
+          </button>
+          {mode === "percent" ? (
+            <div className="flex items-center gap-2">
+              <input
+                inputMode="decimal"
+                value={percentage}
+                onChange={(e) => setPercentage(e.target.value)}
+                placeholder="25"
+                className="min-h-10 w-[70px] border border-white/10 bg-white/5 px-2 text-center text-sm outline-none focus:border-white/30"
+              />
+              <span className="text-sm text-white/40">%</span>
+            </div>
+          ) : (
+            <input
+              inputMode="decimal"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="200000"
+              className="min-h-10 w-32 border border-white/10 bg-white/5 px-3 py-2 text-sm outline-none focus:border-white/30"
+            />
+          )}
+          <span
+            className="text-xs text-white/40"
+            title={`Calculated from ${displayPct.toFixed(2)}% of ${formatNaira(totalIncome)} total income`}
+          >
+            = {formatNaira(derivedAmount)}
+          </span>
+        </div>
         <div className="flex flex-wrap gap-1.5">
           {ALLOCATION_PLATFORMS.map((p) => (
             <button
@@ -122,7 +176,7 @@ export function AllocationForm({ bucketId, maxAmount, onCreated }: AllocationFor
         </div>
         <button
           type="submit"
-          disabled={submitting || maxAmount <= 0}
+          disabled={submitting || totalIncome <= 0}
           className="min-h-10 border border-accent bg-accent text-sm font-medium text-accent-foreground hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-40"
         >
           Add allocation

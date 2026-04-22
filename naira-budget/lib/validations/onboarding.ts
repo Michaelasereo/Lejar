@@ -21,6 +21,7 @@ export const onboardingApiSchema = z.object({
       z.object({
         name: z.string().trim().min(1),
         color: z.string().min(1),
+        percentage: z.number().min(0).max(100),
         amount: z.number().nonnegative(),
       }),
     )

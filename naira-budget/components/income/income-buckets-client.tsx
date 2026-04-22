@@ -21,20 +21,25 @@ export function IncomeBucketsClient({ initialData }: IncomeBucketsClientProps) {
     name: string;
     color: string;
     amount: string;
+    percentage: string;
   }>({
     name: "",
     color: BUCKET_COLORS[0] ?? "#16a34a",
     amount: "",
+    percentage: "",
   });
 
   const dirty = useMemo(() => {
     const i = addIncome.label.trim() !== "" || addIncome.amount.trim() !== "";
-    const b = addBucket.name.trim() !== "" || addBucket.amount.trim() !== "";
+    const b =
+      addBucket.name.trim() !== "" ||
+      addBucket.amount.trim() !== "" ||
+      addBucket.percentage.trim() !== "";
     return i || b;
   }, [addIncome, addBucket]);
 
-  const { totalIncome, totalBucketAllocated, remaining } = initialData;
-  const balanced = Math.abs(remaining) < 0.01;
+  const { totalIncome, totalBucketAllocated, totalAllocatedPercentage, remaining } = initialData;
+  const balanced = Math.abs(totalAllocatedPercentage - 100) < 0.01;
 
   function refresh() {
     router.refresh();
@@ -58,9 +63,13 @@ export function IncomeBucketsClient({ initialData }: IncomeBucketsClientProps) {
         }
         setAddIncome({ label: "", amount: "" });
       }
-      if (addBucket.name.trim() && addBucket.amount.trim() !== "") {
+      if (
+        addBucket.name.trim() &&
+        (addBucket.amount.trim() !== "" || addBucket.percentage.trim() !== "")
+      ) {
         const amt = parseAmountInput(addBucket.amount);
-        if (amt >= 0) {
+        const pct = parseAmountInput(addBucket.percentage);
+        if (amt >= 0 || pct >= 0) {
           const res = await fetch("/api/buckets", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -68,13 +77,19 @@ export function IncomeBucketsClient({ initialData }: IncomeBucketsClientProps) {
               name: addBucket.name.trim(),
               color: addBucket.color,
               allocatedAmount: amt,
+              percentage: pct,
             }),
           });
           if (!res.ok) {
             const j = await res.json().catch(() => ({}));
             throw new Error(typeof j.error === "string" ? j.error : "Could not add bucket");
           }
-          setAddBucket({ name: "", color: BUCKET_COLORS[0] ?? "#16a34a", amount: "" });
+          setAddBucket({
+            name: "",
+            color: BUCKET_COLORS[0] ?? "#16a34a",
+            amount: "",
+            percentage: "",
+          });
         }
       }
       toast.success("Saved");
@@ -105,6 +120,7 @@ export function IncomeBucketsClient({ initialData }: IncomeBucketsClientProps) {
 
       <BucketList
         buckets={initialData.buckets}
+        totalIncome={totalIncome}
         addDraft={addBucket}
         onAddDraftChange={setAddBucket}
         onRefresh={refresh}
@@ -113,6 +129,7 @@ export function IncomeBucketsClient({ initialData }: IncomeBucketsClientProps) {
       <BalanceIndicator
         totalIncome={totalIncome}
         totalAllocated={totalBucketAllocated}
+        totalAllocatedPercentage={totalAllocatedPercentage}
         remaining={remaining}
         dirty={dirty}
         canSave={balanced && dirty}

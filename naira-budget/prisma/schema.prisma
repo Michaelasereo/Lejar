@@ -16,6 +16,7 @@ model UserSettings {
   id          String   @id @default(cuid())
   userId      String   @unique
   isOnboarded Boolean  @default(false)
+  targetSavingsRate Float @default(20)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
@@ -25,10 +26,15 @@ model IncomeSource {
   userId        String
   label         String
   amountMonthly Decimal  @db.Decimal(14, 2)
+  effectiveFrom DateTime @default(now())
+  effectiveTo   DateTime?
+  isActive      Boolean  @default(true)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
   @@index([userId])
+  @@index([userId, effectiveFrom])
+  @@index([userId, effectiveTo])
 }
 
 model Bucket {
@@ -38,6 +44,7 @@ model Bucket {
   color           String
   sortOrder       Int
   allocatedAmount Decimal  @db.Decimal(14, 2)
+  percentage      Float?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -47,11 +54,25 @@ model Bucket {
   @@index([userId])
 }
 
+model MonthlyIncomeOverride {
+  id        String   @id @default(cuid())
+  userId    String
+  monthKey  String
+  amount    Decimal  @db.Decimal(14, 2)
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, monthKey])
+  @@index([userId])
+}
+
 model BucketAllocation {
   id             String   @id @default(cuid())
   bucketId       String
   label          String
   amount         Decimal  @db.Decimal(14, 2)
+  percentage     Float?
   platform       String
   allocationType String
   createdAt      DateTime @default(now())
@@ -203,6 +224,7 @@ model MonthlySnapshot {
   totalIncome       Decimal  @db.Decimal(14, 2)
   totalExpenses     Decimal  @db.Decimal(14, 2)
   totalSaved        Decimal  @db.Decimal(14, 2)
+  cumulativeSavings Decimal  @default(0) @db.Decimal(14, 2)
   savingsRate       Decimal  @db.Decimal(14, 6)
   expenseByCategory Json
   investmentValue   Decimal  @db.Decimal(14, 2)
@@ -210,12 +232,72 @@ model MonthlySnapshot {
   risevest          Decimal  @db.Decimal(14, 2)
   piggyvest         Decimal  @db.Decimal(14, 2)
   ngx               Decimal  @db.Decimal(14, 2)
+  jarsTotal         Decimal  @default(0) @db.Decimal(14, 2)
+  confirmedReturns  Decimal  @default(0) @db.Decimal(14, 2)
+  totalLiabilities  Decimal  @default(0) @db.Decimal(14, 2)
+  netWorth          Decimal  @default(0) @db.Decimal(14, 2)
+  unspentCarryover  Decimal  @default(0) @db.Decimal(14, 2)
+  monthlyNetChange  Decimal  @default(0) @db.Decimal(14, 2)
   jarsProgress      Json?
+  needsRecalculation Boolean @default(false)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
   @@unique([userId, year, month])
   @@index([userId])
+}
+
+model UserLiability {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  totalAmount Decimal  @default(0) @db.Decimal(14, 2)
+  breakdown   Json?
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+}
+
+model UserStreak {
+  id                 String     @id @default(cuid())
+  userId             String
+  type               StreakType
+  currentCount       Int        @default(0)
+  longestCount       Int        @default(0)
+  lastRecordedPeriod String?
+  isActive           Boolean    @default(true)
+  startedAt          DateTime?
+  lastExtendedAt     DateTime?
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  @@unique([userId, type])
+  @@index([userId])
+}
+
+model UserMilestone {
+  id         String        @id @default(cuid())
+  userId     String
+  type       MilestoneType
+  value      Float?
+  achievedAt DateTime      @default(now())
+  isNew      Boolean       @default(true)
+  createdAt  DateTime      @default(now())
+
+  @@unique([userId, type, value])
+  @@index([userId, achievedAt])
+}
+
+model StreakWarning {
+  id          String     @id @default(cuid())
+  userId      String
+  streakType  StreakType
+  message     String
+  expiresAt   DateTime
+  isDismissed Boolean    @default(false)
+  createdAt   DateTime   @default(now())
+
+  @@index([userId, expiresAt])
 }
 
 model GroupSavingsJar {
@@ -291,4 +373,30 @@ enum GroupJarMemberStatus {
   ACTIVE
   DECLINED
   REMOVED
+}
+
+enum StreakType {
+  MONTHLY_SAVINGS
+  MONTHLY_BUDGET
+  WEEKLY_LOGGING
+  MONTHLY_INVESTING
+}
+
+enum MilestoneType {
+  NET_WORTH_500K
+  NET_WORTH_1M
+  NET_WORTH_5M
+  NET_WORTH_10M
+  NET_WORTH_50M
+  NET_WORTH_100M
+  FIRST_INVESTMENT
+  FIRST_TBILL
+  FIRST_TBILL_ROLLOVER
+  SAVINGS_STREAK_3
+  SAVINGS_STREAK_6
+  SAVINGS_STREAK_12
+  FIRST_JAR_COMPLETE
+  FIRST_EXPENSE_LOGGED
+  FIRST_GROCERY_LOGGED
+  BUDGET_RESPECTED_3
 }

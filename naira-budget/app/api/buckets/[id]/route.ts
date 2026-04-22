@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { requireUser } from "@/lib/auth/require-user";
+import {
+  getBucketAllocationPercentage,
+  getUserBucketPercentageTotal,
+  isPercentageClose,
+} from "@/lib/income/bucket-percentage";
+import { getTotalIncomeForUser } from "@/lib/income/recalculate-allocation-amounts";
 import { sumAllocationsForBucket } from "@/lib/income/allocation-sum";
 import { prisma } from "@/lib/prisma";
 import { updateBucketSchema } from "@/lib/validations/income-api";
@@ -42,16 +48,47 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
     }
   }
 
+  if (parsed.data.percentage !== undefined) {
+    const usedPercentage = await getUserBucketPercentageTotal(auth.user.id, id);
+    if (usedPercentage + parsed.data.percentage > 100 + 1e-9) {
+      return NextResponse.json(
+        { error: "Total bucket percentage cannot exceed 100%." },
+        { status: 400 },
+      );
+    }
+    const allocationPercentage = await getBucketAllocationPercentage(id);
+    if (
+      allocationPercentage > 0 &&
+      !isPercentageClose(parsed.data.percentage, allocationPercentage)
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Bucket percentage must match the sum of allocation percentages in this bucket.",
+        },
+        { status: 400 },
+      );
+    }
+  }
+
   const data: {
     name?: string;
     color?: string;
     allocatedAmount?: Prisma.Decimal;
+    percentage?: number;
     sortOrder?: number;
   } = {};
   if (parsed.data.name !== undefined) data.name = parsed.data.name;
   if (parsed.data.color !== undefined) data.color = parsed.data.color;
   if (parsed.data.allocatedAmount !== undefined) {
     data.allocatedAmount = new Prisma.Decimal(parsed.data.allocatedAmount);
+  }
+  if (parsed.data.percentage !== undefined) {
+    data.percentage = parsed.data.percentage;
+    const totalIncome = await getTotalIncomeForUser(auth.user.id);
+    data.allocatedAmount = new Prisma.Decimal(
+      Math.round((parsed.data.percentage / 100) * totalIncome),
+    );
   }
   if (parsed.data.sortOrder !== undefined) data.sortOrder = parsed.data.sortOrder;
 
@@ -70,6 +107,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
       color: row.color,
       sortOrder: row.sortOrder,
       allocatedAmount: row.allocatedAmount.toString(),
+      percentage: row.percentage,
     });
   } catch (e) {
     console.error(e);

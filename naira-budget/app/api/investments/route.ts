@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { requireUser } from "@/lib/auth/require-user";
 import { dateInputToDate } from "@/lib/investments/dates";
 import { prisma } from "@/lib/prisma";
+import { evaluateStreaks, maybeCreateFirstInvestmentMilestones } from "@/lib/utils/streaks";
 import { createInvestmentSchema } from "@/lib/validations/investment";
 
 export async function POST(req: NextRequest) {
@@ -55,6 +56,10 @@ export async function POST(req: NextRequest) {
         status: body.status ?? "ACTIVE",
       },
     });
+    await Promise.all([
+      evaluateStreaks(auth.user.id),
+      maybeCreateFirstInvestmentMilestones(auth.user.id, row.type),
+    ]);
 
     return NextResponse.json(
       {

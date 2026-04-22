@@ -19,6 +19,7 @@ import {
   Tooltip,
   XAxis,
   YAxis,
+  ReferenceLine,
 } from "recharts";
 import { toast } from "sonner";
 import type { AnalyticsResponseBody, AnalyticsRange } from "@/lib/utils/analytics";
@@ -161,6 +162,17 @@ export function AnalyticsView() {
     }));
     if (rest > 0) rows.push({ name: "Other categories", value: rest, key: "OTHER_MERGED" });
     return rows;
+  }, [data]);
+
+  const incomeChangePoints = useMemo(() => {
+    if (!data) return [];
+    const out: Array<{ label: string; income: number }> = [];
+    for (let i = 1; i < data.incomeVsExpenseTrend.length; i += 1) {
+      const prev = data.incomeVsExpenseTrend[i - 1]!;
+      const curr = data.incomeVsExpenseTrend[i]!;
+      if (curr.income !== prev.income) out.push({ label: curr.label, income: curr.income });
+    }
+    return out.slice(-3);
   }, [data]);
 
   async function saveSnapshot() {
@@ -321,6 +333,20 @@ export function AnalyticsView() {
                     formatter={(value) => tooltipNaira(value)}
                   />
                   <Legend />
+                  {incomeChangePoints.map((point) => (
+                    <ReferenceLine
+                      key={`income-change-${point.label}`}
+                      x={point.label}
+                      stroke="rgba(255,255,255,0.3)"
+                      strokeDasharray="3 3"
+                      label={{
+                        value: `Income -> ${tooltipNaira(point.income)}`,
+                        fill: "rgba(255,255,255,0.35)",
+                        fontSize: 10,
+                        position: "insideTopLeft",
+                      }}
+                    />
+                  ))}
                   <Line type="monotone" dataKey="income" name="Income" stroke="#22c55e" strokeWidth={2} dot={false} />
                   <Line type="monotone" dataKey="expenses" name="Expenses" stroke="#ef4444" strokeWidth={2} dot={false} />
                 </LineChart>

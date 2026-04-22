@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { startOfMonth } from "date-fns";
 import { createServerClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { onboardingApiSchema } from "@/lib/validations/onboarding";
@@ -82,18 +83,35 @@ export async function POST(req: NextRequest) {
           userId,
           label: row.label,
           amountMonthly: new Prisma.Decimal(row.amount),
+          effectiveFrom: startOfMonth(new Date()),
+          effectiveTo: null,
+          isActive: true,
         })),
       });
 
-      await tx.bucket.createMany({
-        data: body.buckets.map((b, i) => ({
-          userId,
-          name: b.name,
-          color: b.color,
-          sortOrder: i,
-          allocatedAmount: new Prisma.Decimal(b.amount),
-        })),
-      });
+      for (let i = 0; i < body.buckets.length; i += 1) {
+        const b = body.buckets[i]!;
+        const bucket = await tx.bucket.create({
+          data: {
+            userId,
+            name: b.name,
+            color: b.color,
+            sortOrder: i,
+            percentage: b.percentage,
+            allocatedAmount: new Prisma.Decimal(b.amount),
+          },
+        });
+        await tx.bucketAllocation.create({
+          data: {
+            bucketId: bucket.id,
+            label: `${b.name} allocation`,
+            amount: new Prisma.Decimal(b.amount),
+            percentage: b.percentage,
+            platform: "OTHER",
+            allocationType: "SPENDING",
+          },
+        });
+      }
 
       if (!body.rentSkipped && body.rent && body.rent.annualAmount > 0) {
         await tx.rentJar.create({

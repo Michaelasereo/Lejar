@@ -1,11 +1,13 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { formatNaira } from "@/lib/utils/currency";
 import { cn } from "@/lib/utils/cn";
 
 interface BalanceIndicatorProps {
   totalIncome: number;
   totalAllocated: number;
+  totalAllocatedPercentage: number;
   remaining: number;
   dirty: boolean;
   canSave: boolean;
@@ -15,12 +17,21 @@ interface BalanceIndicatorProps {
 export function BalanceIndicator({
   totalIncome,
   totalAllocated,
+  totalAllocatedPercentage,
   remaining,
   dirty,
   canSave,
   onSave,
 }: BalanceIndicatorProps) {
   const balanced = Math.abs(remaining) < 0.01;
+  const [showFlash, setShowFlash] = useState(false);
+  useEffect(() => {
+    if (!balanced) return;
+    setShowFlash(true);
+    const timer = setTimeout(() => setShowFlash(false), 2000);
+    return () => clearTimeout(timer);
+  }, [balanced, totalAllocatedPercentage]);
+
   const tone = balanced
     ? "text-accent"
     : remaining > 0
@@ -36,11 +47,17 @@ export function BalanceIndicator({
       <div className="mx-auto flex max-w-5xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className={cn("text-sm font-medium", tone)}>
           <span className="text-white/60">
-            {formatNaira(totalAllocated)} of {formatNaira(totalIncome)} allocated
+            {Math.round(totalAllocatedPercentage * 100) / 100}% allocated
           </span>
           <span className="mx-2 text-white/25">·</span>
           <span>
-            {balanced ? "Balanced" : `${formatNaira(Math.abs(remaining))} ${remaining >= 0 ? "remaining" : "over"}`}
+            {balanced
+              ? showFlash
+                ? "100% ✓ Fully allocated"
+                : `${formatNaira(totalAllocated)} of ${formatNaira(totalIncome)}`
+              : remaining < 0
+                ? `${(Math.round(totalAllocatedPercentage * 100) / 100).toFixed(2)}% — over by ${formatNaira(Math.abs(remaining))}`
+                : `${(Math.round(totalAllocatedPercentage * 100) / 100).toFixed(2)}% — ${formatNaira(remaining)} unallocated`}
           </span>
         </p>
         <button

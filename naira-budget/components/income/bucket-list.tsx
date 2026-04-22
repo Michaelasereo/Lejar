@@ -13,30 +13,47 @@ interface BucketListProps {
     color: string;
     sortOrder: number;
     allocatedAmount: number;
+    percentage: number;
+    allocationPercentage: number;
+    hasAllocationMismatch: boolean;
     allocations: Array<{
       id: string;
       label: string;
       amount: number;
+      percentage: number;
       platform: string;
       allocationType: string;
     }>;
   }>;
-  addDraft: { name: string; color: string; amount: string };
-  onAddDraftChange: (next: { name: string; color: string; amount: string }) => void;
+  totalIncome: number;
+  addDraft: { name: string; color: string; amount: string; percentage: string };
+  onAddDraftChange: (next: {
+    name: string;
+    color: string;
+    amount: string;
+    percentage: string;
+  }) => void;
   onRefresh: () => void;
 }
 
-export function BucketList({ buckets, addDraft, onAddDraftChange, onRefresh }: BucketListProps) {
+export function BucketList({
+  buckets,
+  totalIncome,
+  addDraft,
+  onAddDraftChange,
+  onRefresh,
+}: BucketListProps) {
   async function addBucket(e: React.FormEvent) {
     e.preventDefault();
     const name = addDraft.name.trim();
     const amt = parseAmountInput(addDraft.amount);
+    const pct = parseAmountInput(addDraft.percentage);
     if (!name) {
       toast.error("Enter a bucket name.");
       return;
     }
-    if (amt < 0) {
-      toast.error("Enter a valid amount.");
+    if (amt < 0 || pct < 0) {
+      toast.error("Enter a valid amount or percentage.");
       return;
     }
     const res = await fetch("/api/buckets", {
@@ -45,7 +62,8 @@ export function BucketList({ buckets, addDraft, onAddDraftChange, onRefresh }: B
       body: JSON.stringify({
         name,
         color: addDraft.color,
-        allocatedAmount: amt,
+        allocatedAmount: amt || undefined,
+        percentage: pct || undefined,
       }),
     });
     if (!res.ok) {
@@ -54,7 +72,12 @@ export function BucketList({ buckets, addDraft, onAddDraftChange, onRefresh }: B
       return;
     }
     toast.success("Bucket added");
-    onAddDraftChange({ name: "", color: BUCKET_COLORS[0] ?? "#16a34a", amount: "" });
+    onAddDraftChange({
+      name: "",
+      color: BUCKET_COLORS[0] ?? "#16a34a",
+      amount: "",
+      percentage: "",
+    });
     onRefresh();
   }
 
@@ -76,7 +99,11 @@ export function BucketList({ buckets, addDraft, onAddDraftChange, onRefresh }: B
               name={b.name}
               color={b.color}
               allocatedAmount={b.allocatedAmount}
+              percentage={b.percentage}
+              allocationPercentage={b.allocationPercentage}
+              hasAllocationMismatch={b.hasAllocationMismatch}
               allocations={b.allocations}
+              totalIncome={totalIncome}
               onRefresh={onRefresh}
             />
           ))
@@ -114,6 +141,13 @@ export function BucketList({ buckets, addDraft, onAddDraftChange, onRefresh }: B
               onChange={(e) => onAddDraftChange({ ...addDraft, amount: e.target.value })}
               placeholder="Allocated amount"
               className="min-h-11 w-full border border-white/15 bg-background px-3 py-2.5 text-sm outline-none focus:border-accent sm:w-40"
+            />
+            <input
+              inputMode="decimal"
+              value={addDraft.percentage}
+              onChange={(e) => onAddDraftChange({ ...addDraft, percentage: e.target.value })}
+              placeholder="Bucket %"
+              className="min-h-11 w-full border border-white/15 bg-background px-3 py-2.5 text-sm outline-none focus:border-accent sm:w-28"
             />
             <button
               type="submit"

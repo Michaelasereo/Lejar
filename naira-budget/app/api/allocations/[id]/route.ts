@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { requireUser } from "@/lib/auth/require-user";
-import { sumAllocationsForBucket } from "@/lib/income/allocation-sum";
-import { toNumber } from "@/lib/income/money";
+import { getBucketAllocationPercentage } from "@/lib/income/bucket-percentage";
+import { getTotalIncomeForUser } from "@/lib/income/recalculate-allocation-amounts";
+import { amountToPercentage, percentageToAmount } from "@/lib/utils/currency";
 import { prisma } from "@/lib/prisma";
 import { updateAllocationSchema } from "@/lib/validations/income-api";
 
@@ -31,29 +32,44 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const bucketId = existing.bucketId;
-  const cap = toNumber(existing.bucket.allocatedAmount);
-
-  const nextAmount =
-    parsed.data.amount !== undefined ? parsed.data.amount : toNumber(existing.amount);
-  const others = await sumAllocationsForBucket(bucketId, id);
-  if (others + nextAmount > cap + 1e-9) {
+  const totalIncome = await getTotalIncomeForUser(auth.user.id);
+  if (totalIncome <= 0) {
     return NextResponse.json(
-      {
-        error: "Allocations in this bucket cannot exceed the bucket total.",
-      },
+      { error: "Add income before updating allocations." },
       { status: 400 },
     );
   }
 
+  const nextPercentage =
+    parsed.data.percentage !== undefined
+      ? parsed.data.percentage
+      : parsed.data.amount !== undefined
+        ? amountToPercentage(parsed.data.amount, totalIncome)
+        : (existing.percentage ?? amountToPercentage(Number(existing.amount), totalIncome));
+
+  const currentBucketPct = await getBucketAllocationPercentage(existing.bucketId);
+  const nextBucketPct = currentBucketPct - (existing.percentage ?? 0) + nextPercentage;
+  const bucketPctLimit = existing.bucket.percentage ?? 0;
+  if (bucketPctLimit > 0 && nextBucketPct > bucketPctLimit + 1e-9) {
+    return NextResponse.json(
+      { error: "Allocation percentages cannot exceed this bucket's official percentage." },
+      { status: 400 },
+    );
+  }
+  const nextAmount = percentageToAmount(nextPercentage, totalIncome);
+
   const data: {
     label?: string;
     amount?: Prisma.Decimal;
+    percentage?: number;
     platform?: string;
     allocationType?: string;
   } = {};
   if (parsed.data.label !== undefined) data.label = parsed.data.label;
-  if (parsed.data.amount !== undefined) data.amount = new Prisma.Decimal(parsed.data.amount);
+  if (parsed.data.amount !== undefined || parsed.data.percentage !== undefined) {
+    data.percentage = nextPercentage;
+    data.amount = new Prisma.Decimal(nextAmount);
+  }
   if (parsed.data.platform !== undefined) data.platform = parsed.data.platform;
   if (parsed.data.allocationType !== undefined)
     data.allocationType = parsed.data.allocationType;
@@ -67,11 +83,23 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
       where: { id },
       data,
     });
+    const bucketTotal = await prisma.bucketAllocation.aggregate({
+      where: { bucketId: existing.bucketId },
+      _sum: { amount: true },
+    });
+    await prisma.bucket.update({
+      where: { id: existing.bucketId },
+      data: {
+        allocatedAmount: bucketTotal._sum.amount ?? new Prisma.Decimal(0),
+        percentage: existing.bucket.percentage ?? nextBucketPct,
+      },
+    });
     return NextResponse.json({
       id: row.id,
       bucketId: row.bucketId,
       label: row.label,
       amount: row.amount.toString(),
+      percentage: row.percentage,
       platform: row.platform,
       allocationType: row.allocationType,
     });
@@ -97,6 +125,17 @@ export async function DELETE(_req: NextRequest, context: RouteContext) {
 
   try {
     await prisma.bucketAllocation.delete({ where: { id } });
+    const bucketTotal = await prisma.bucketAllocation.aggregate({
+      where: { bucketId: existing.bucketId },
+      _sum: { amount: true },
+    });
+    await prisma.bucket.update({
+      where: { id: existing.bucketId },
+      data: {
+        allocatedAmount: bucketTotal._sum.amount ?? new Prisma.Decimal(0),
+        percentage: await getBucketAllocationPercentage(existing.bucketId),
+      },
+    });
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error(e);

@@ -2,6 +2,7 @@ import { Prisma, type PrismaClient } from "@prisma/client";
 import { parseMonthKey } from "@/lib/dashboard/get-dashboard-data";
 import { expenseCategoryLabel } from "@/lib/expenses/constants";
 import { categoryDotColor } from "@/lib/utils/expense-category";
+import { getIncomeForMonth } from "@/lib/utils/income";
 
 export type AnalyticsRange = "monthly" | "quarterly" | "annual" | "all" | "custom";
 
@@ -91,11 +92,11 @@ export async function earliestUserMonth(
     }),
     prisma.incomeSource.findFirst({
       where: { userId },
-      orderBy: { createdAt: "asc" },
-      select: { createdAt: true },
+      orderBy: { effectiveFrom: "asc" },
+      select: { effectiveFrom: true },
     }),
   ]);
-  const dates = [expMin?.occurredAt, incomeMin?.createdAt].filter(Boolean) as Date[];
+  const dates = [expMin?.occurredAt, incomeMin?.effectiveFrom].filter(Boolean) as Date[];
   if (dates.length === 0) return null;
   const t = dates.reduce((a, b) => (a.getTime() < b.getTime() ? a : b));
   return { year: t.getFullYear(), month: t.getMonth() + 1 };
@@ -200,8 +201,8 @@ async function computeCoreMonth(
   const start = new Date(ref.year, ref.month - 1, 1, 0, 0, 0, 0);
   const end = new Date(ref.year, ref.month, 0, 23, 59, 59, 999);
 
-  const [incomeSources, expenses] = await Promise.all([
-    prisma.incomeSource.findMany({ where: { userId } }),
+  const [totalIncome, expenses] = await Promise.all([
+    getIncomeForMonth(userId, ref.year, ref.month),
     prisma.expense.findMany({
       where: {
         userId,
@@ -210,7 +211,6 @@ async function computeCoreMonth(
     }),
   ]);
 
-  const totalIncome = incomeSources.reduce((s, r) => s + toNum(r.amountMonthly), 0);
   const totalExpenses = expenses.reduce((s, e) => s + toNum(e.amount), 0);
   const expenseByCategory: Record<string, number> = {};
   for (const e of expenses) {
@@ -596,6 +596,7 @@ export async function upsertMonthlySnapshotForMonth(
       ngx: new Prisma.Decimal(split.ngx),
       jarsProgress:
         jp.length > 0 ? (jp as unknown as Prisma.InputJsonValue) : Prisma.JsonNull,
+      needsRecalculation: false,
     },
     update: {
       totalIncome: new Prisma.Decimal(core.totalIncome),
@@ -610,6 +611,7 @@ export async function upsertMonthlySnapshotForMonth(
       ngx: new Prisma.Decimal(split.ngx),
       jarsProgress:
         jp.length > 0 ? (jp as unknown as Prisma.InputJsonValue) : Prisma.JsonNull,
+      needsRecalculation: false,
     },
   });
 }

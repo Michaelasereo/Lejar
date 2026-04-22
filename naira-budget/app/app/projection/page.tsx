@@ -6,6 +6,7 @@ import {
   monthKeyFromDate,
   monthRange,
 } from "@/lib/dashboard/get-dashboard-data";
+import { formatMonthParam, parseMonthParam } from "@/lib/utils/dates";
 import { WealthProjectionChart } from "@/components/dashboard/wealth-projection-chart";
 
 export const metadata: Metadata = {
@@ -26,7 +27,8 @@ export default async function ProjectionPage({
     redirect("/login");
   }
 
-  let monthKey = searchParams.month ?? monthKeyFromDate(new Date());
+  const parsedMonth = parseMonthParam(searchParams.month);
+  let monthKey = formatMonthParam(parsedMonth.year, parsedMonth.month);
   if (!monthRange(monthKey)) {
     monthKey = monthKeyFromDate(new Date());
   }

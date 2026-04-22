@@ -6,6 +6,7 @@ import {
   monthKeyFromDate,
   monthRange,
 } from "@/lib/dashboard/get-dashboard-data";
+import { formatMonthParam, parseMonthParam } from "@/lib/utils/dates";
 import { getExpensesPageData } from "@/lib/expenses/get-expenses-page-data";
 import { ExpensesClient } from "@/components/expenses/expenses-client";
 import { ExpensesMonthSync } from "@/components/expenses/expenses-month-sync";
@@ -28,7 +29,8 @@ export default async function ExpensesPage({
     redirect("/login");
   }
 
-  let monthKey = searchParams.month ?? monthKeyFromDate(new Date());
+  const parsedMonth = parseMonthParam(searchParams.month);
+  let monthKey = formatMonthParam(parsedMonth.year, parsedMonth.month);
   if (!monthRange(monthKey)) {
     monthKey = monthKeyFromDate(new Date());
   }

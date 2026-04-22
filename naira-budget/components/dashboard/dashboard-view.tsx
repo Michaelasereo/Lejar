@@ -1,10 +1,13 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import type { DashboardData } from "@/lib/dashboard/get-dashboard-data";
 import { formatNaira } from "@/lib/utils/currency";
 import { categoryDotColor } from "@/lib/utils/expense-category";
 import { cn } from "@/lib/utils/cn";
 import { TbMaturityBanner } from "@/components/dashboard/tb-maturity-banner";
 import { WealthProjectionChart } from "@/components/dashboard/wealth-projection-chart";
+import { StreakWarningBanner } from "@/components/dashboard/streak-warning-banner";
+import { IncomeOverrideControls } from "@/components/dashboard/income-override-controls";
 
 const INVESTMENT_LABELS: Record<string, string> = {
   T_BILL: "T-bills",
@@ -13,6 +16,13 @@ const INVESTMENT_LABELS: Record<string, string> = {
   NGX: "NGX",
   COWRYWISE: "Cowrywise",
   OTHER: "Other",
+};
+
+const STREAK_NAMES: Record<string, string> = {
+  MONTHLY_SAVINGS: "Savings streak",
+  MONTHLY_BUDGET: "Budget streak",
+  WEEKLY_LOGGING: "Logging streak",
+  MONTHLY_INVESTING: "Investing streak",
 };
 
 function formatCompact(n: number): string {
@@ -51,12 +61,30 @@ export function DashboardView({ data }: DashboardViewProps) {
   return (
     <div>
       <TbMaturityBanner items={data.tbillsMaturingSoon} />
+      {data.streakWarning ? <StreakWarningBanner warning={data.streakWarning} /> : null}
+      {data.unspentCarryover > 0 &&
+      new Date().getDate() >= 28 &&
+      new Date().getDate() <= 31 ? (
+        <div className="mt-4 border border-green-500/20 bg-green-500/5 p-3 text-sm text-white/70">
+          <p>
+            You have {formatNaira(data.unspentCarryover)} unspent from your spending budget this
+            month. It will be added to your net worth at month end.
+          </p>
+        </div>
+      ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <MetricCard
           label="Monthly income"
           value={formatNaira(data.totalIncome)}
           valueClass="text-foreground"
+          subNode={
+            <IncomeOverrideControls
+              monthKey={data.monthKey}
+              currentIncome={data.totalIncome}
+              isOverridden={data.incomeIsOverridden}
+            />
+          }
         />
         <MetricCard
           label="Saved this month"
@@ -76,6 +104,18 @@ export function DashboardView({ data }: DashboardViewProps) {
           valueClass="text-accent"
         />
       </div>
+      {data.bestStreak ? (
+        <section className="mt-6 border border-white/10 bg-white/[0.02] p-4">
+          <p className="text-xs uppercase tracking-widest text-white/30">Current momentum</p>
+          <p className="mt-2 text-sm text-white">
+            {STREAK_NAMES[data.bestStreak.type] ?? data.bestStreak.type}:{" "}
+            <span className="font-medium text-accent">{data.bestStreak.currentCount}</span>
+          </p>
+          <Link href="/app/analytics?tab=streaks" className="mt-2 inline-block text-xs text-white/50 hover:text-white/80">
+            View all streaks →
+          </Link>
+        </section>
+      ) : null}
 
       <section className="mt-12">
         <p className="text-xs uppercase tracking-widest text-white/30">Buckets</p>
@@ -113,7 +153,7 @@ export function DashboardView({ data }: DashboardViewProps) {
                       {b.name}
                     </span>
                     <span className="text-sm tabular-nums text-white/80">
-                      {formatNaira(b.allocated)}
+                      {b.percentage.toFixed(2)}% · {formatNaira(b.allocated)}
                     </span>
                   </div>
                   <div className="mt-3 h-1 w-full bg-white/5">
@@ -299,11 +339,13 @@ function MetricCard({
   label,
   value,
   sub,
+  subNode,
   valueClass,
 }: {
   label: string;
   value: string;
   sub?: string;
+  subNode?: ReactNode;
   valueClass: string;
 }) {
   return (
@@ -313,6 +355,7 @@ function MetricCard({
         {value}
       </p>
       {sub ? <p className="mt-2 text-xs text-white/30">{sub}</p> : null}
+      {subNode}
     </div>
   );
 }

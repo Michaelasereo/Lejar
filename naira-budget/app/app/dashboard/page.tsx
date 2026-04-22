@@ -7,6 +7,7 @@ import {
   monthKeyFromDate,
   monthRange,
 } from "@/lib/dashboard/get-dashboard-data";
+import { formatMonthParam, parseMonthParam } from "@/lib/utils/dates";
 import { DashboardView } from "@/components/dashboard/dashboard-view";
 import { DashboardMonthSync } from "@/components/dashboard/dashboard-month-sync";
 import { DashboardFab } from "@/components/dashboard/dashboard-fab";
@@ -29,7 +30,8 @@ export default async function DashboardPage({
     redirect("/login");
   }
 
-  let monthKey = searchParams.month ?? monthKeyFromDate(new Date());
+  const parsedMonth = parseMonthParam(searchParams.month);
+  let monthKey = formatMonthParam(parsedMonth.year, parsedMonth.month);
   if (!monthRange(monthKey)) {
     monthKey = monthKeyFromDate(new Date());
   }

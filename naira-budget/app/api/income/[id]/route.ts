@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { requireUser } from "@/lib/auth/require-user";
+import { recalculateAllocationAmountsForUser } from "@/lib/income/recalculate-allocation-amounts";
 import { prisma } from "@/lib/prisma";
+import { backdateIncomeChange, updateIncomeWithHistory } from "@/lib/utils/income";
 import { updateIncomeSchema } from "@/lib/validations/income-api";
 
 type RouteContext = { params: { id: string } };
@@ -30,23 +32,55 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
 
   const data: { label?: string; amountMonthly?: Prisma.Decimal } = {};
   if (parsed.data.label !== undefined) data.label = parsed.data.label;
-  if (parsed.data.amountMonthly !== undefined) {
-    data.amountMonthly = new Prisma.Decimal(parsed.data.amountMonthly);
-  }
-
-  if (Object.keys(data).length === 0) {
+  const changingAmount = parsed.data.amountMonthly !== undefined;
+  if (!changingAmount && Object.keys(data).length === 0) {
     return NextResponse.json({ error: "No changes" }, { status: 400 });
   }
 
   try {
-    const row = await prisma.incomeSource.update({
-      where: { id },
-      data,
-    });
+    if (!changingAmount) {
+      const row = await prisma.incomeSource.update({
+        where: { id },
+        data,
+      });
+      return NextResponse.json({
+        id: row.id,
+        label: row.label,
+        amountMonthly: row.amountMonthly.toString(),
+      });
+    }
+
+    if (!parsed.data.effectiveMonth) {
+      return NextResponse.json(
+        { error: "effectiveMonth required when changing amount" },
+        { status: 400 },
+      );
+    }
+
+    let affectedMonths: string[] = [];
+    if (parsed.data.isBackdate) {
+      const result = await backdateIncomeChange(
+        auth.user.id,
+        id,
+        parsed.data.amountMonthly!,
+        parsed.data.effectiveMonth,
+      );
+      affectedMonths = result.affectedMonths;
+    } else {
+      await updateIncomeWithHistory(
+        auth.user.id,
+        id,
+        parsed.data.amountMonthly!,
+        parsed.data.effectiveMonth,
+      );
+    }
+
+    const recalc = await recalculateAllocationAmountsForUser(auth.user.id);
     return NextResponse.json({
-      id: row.id,
-      label: row.label,
-      amountMonthly: row.amountMonthly.toString(),
+      updatedIncome: true,
+      affectedMonths,
+      recalculatedAllocations: recalc.updatedCount,
+      allocationsRecalculated: recalc.updatedCount > 0,
     });
   } catch (e) {
     console.error(e);
@@ -69,7 +103,8 @@ export async function DELETE(_req: NextRequest, context: RouteContext) {
 
   try {
     await prisma.incomeSource.delete({ where: { id } });
-    return NextResponse.json({ ok: true });
+    const recalc = await recalculateAllocationAmountsForUser(auth.user.id);
+    return NextResponse.json({ ok: true, allocationsRecalculated: recalc.updatedCount > 0 });
   } catch (e) {
     console.error(e);
     return NextResponse.json({ error: "Could not delete income source" }, { status: 500 });

@@ -1,5 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { projectWealthBars } from "@/lib/utils/projection";
+import { getIncomeForMonth } from "@/lib/utils/income";
+import { calculateUnspentCarryover } from "@/lib/utils/networth";
+import { ensureWeeklyLoggingGraceWarning } from "@/lib/utils/streaks";
 
 function toNumber(v: { toString(): string } | number): number {
   if (typeof v === "number") return v;
@@ -36,6 +39,7 @@ function monthsBetween(start: Date, end: Date): number {
 export interface DashboardData {
   monthKey: string;
   totalIncome: number;
+  incomeIsOverridden: boolean;
   savedThisMonth: number;
   spentThisMonth: number;
   savingsRatePercent: number;
@@ -45,6 +49,7 @@ export interface DashboardData {
     name: string;
     color: string;
     allocated: number;
+    percentage: number;
     spent: number;
   }>;
   rentJar: null | {
@@ -87,6 +92,9 @@ export interface DashboardData {
   }>;
   wealthBars: { year: number; value: number }[];
   wealthFinalLine: string;
+  unspentCarryover: number;
+  bestStreak: null | { type: string; currentCount: number };
+  streakWarning: null | { id: string; message: string };
 }
 
 export async function getDashboardData(
@@ -96,12 +104,33 @@ export async function getDashboardData(
   const range = monthRange(monthKey);
   if (!range) return null;
 
-  const [incomeSources, buckets, rentJar, pinnedJarRows, expenses, investments] =
+  await ensureWeeklyLoggingGraceWarning(userId);
+  const [
+    buckets,
+    rentJar,
+    pinnedJarRows,
+    expenses,
+    investments,
+    monthIncome,
+    incomeOverride,
+    unspentCarryover,
+    bestStreak,
+    streakWarning,
+  ] =
     await Promise.all([
-      prisma.incomeSource.findMany({ where: { userId } }),
       prisma.bucket.findMany({
         where: { userId },
         orderBy: { sortOrder: "asc" },
+        select: {
+          id: true,
+          name: true,
+          color: true,
+          allocatedAmount: true,
+          percentage: true,
+          allocations: {
+            select: { percentage: true },
+          },
+        },
       }),
       prisma.rentJar.findUnique({ where: { userId } }),
       prisma.savingsJar.findMany({
@@ -116,7 +145,7 @@ export async function getDashboardData(
         orderBy: { occurredAt: "desc" },
       }),
       prisma.investment.findMany({
-        where: { userId, status: "ACTIVE" },
+        where: { userId },
         // Select only legacy-safe columns so dashboard still works before
         // production migrations add new investment fields.
         select: {
@@ -125,19 +154,34 @@ export async function getDashboardData(
           label: true,
           amount: true,
           maturityDate: true,
+          status: true,
         },
+      }),
+      getIncomeForMonth(userId, range.start.getFullYear(), range.start.getMonth() + 1),
+      prisma.monthlyIncomeOverride.findUnique({
+        where: { userId_monthKey: { userId, monthKey } },
+        select: { id: true },
+      }),
+      calculateUnspentCarryover(userId, range.start.getFullYear(), range.start.getMonth() + 1),
+      prisma.userStreak.findFirst({
+        where: { userId, isActive: true },
+        orderBy: [{ currentCount: "desc" }, { updatedAt: "desc" }],
+        select: { type: true, currentCount: true },
+      }),
+      prisma.streakWarning.findFirst({
+        where: {
+          userId,
+          isDismissed: false,
+          expiresAt: { gte: new Date() },
+        },
+        orderBy: { createdAt: "desc" },
+        select: { id: true, message: true },
       }),
     ]);
 
-  const totalIncome = incomeSources.reduce(
-    (s, r) => s + toNumber(r.amountMonthly),
-    0,
-  );
+  const totalIncome = monthIncome;
 
-  const budgetTotal = buckets.reduce(
-    (s, b) => s + toNumber(b.allocatedAmount),
-    0,
-  );
+  let budgetTotal = 0;
 
   const spentThisMonth = expenses.reduce((s, e) => s + toNumber(e.amount), 0);
 
@@ -154,26 +198,38 @@ export async function getDashboardData(
     id: b.id,
     name: b.name,
     color: b.color,
-    allocated: toNumber(b.allocatedAmount),
+    allocated: 0,
+    percentage:
+      typeof b.percentage === "number"
+        ? b.percentage
+        : b.allocations.reduce((sum, a) => sum + (a.percentage ?? 0), 0),
     spent: spentByBucket.get(b.id) ?? 0,
   }));
+  for (const bucket of bucketRows) {
+    bucket.allocated =
+      bucket.percentage > 0
+        ? Math.round((bucket.percentage / 100) * totalIncome)
+        : toNumber(buckets.find((b) => b.id === bucket.id)?.allocatedAmount ?? 0);
+    budgetTotal += bucket.allocated;
+  }
 
   const savedThisMonth = Math.max(0, totalIncome - spentThisMonth);
 
   const savingsRatePercent =
     totalIncome > 0 ? Math.round((savedThisMonth / totalIncome) * 1000) / 10 : 0;
 
-  const portfolioTotal = investments.reduce((s, i) => s + toNumber(i.amount), 0);
+  const activeInvestments = investments.filter((i) => i.status === "ACTIVE");
+  const portfolioTotal = activeInvestments.reduce((s, i) => s + toNumber(i.amount), 0);
 
   const investmentsByType: Record<string, number> = {};
-  for (const inv of investments) {
+  for (const inv of activeInvestments) {
     const t = inv.type;
     investmentsByType[t] = (investmentsByType[t] ?? 0) + toNumber(inv.amount);
   }
 
   const now = new Date();
   const weekMs = 7 * 24 * 60 * 60 * 1000;
-  const tbillsMaturingSoon = investments
+  const tbillsMaturingSoon = activeInvestments
     .filter(
       (i) =>
         i.type === "T_BILL" &&
@@ -275,6 +331,7 @@ export async function getDashboardData(
   return {
     monthKey,
     totalIncome,
+    incomeIsOverridden: Boolean(incomeOverride),
     savedThisMonth,
     spentThisMonth,
     savingsRatePercent,
@@ -288,6 +345,9 @@ export async function getDashboardData(
     recentExpenses,
     wealthBars,
     wealthFinalLine,
+    unspentCarryover,
+    bestStreak,
+    streakWarning,
   };
 }
 

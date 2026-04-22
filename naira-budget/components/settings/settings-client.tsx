@@ -6,6 +6,7 @@ import Link from "next/link";
 import { LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { SettingsPageData } from "@/lib/settings/get-settings-page-data";
+import { formatNaira } from "@/lib/utils/currency";
 
 interface SettingsClientProps {
   data: SettingsPageData;
@@ -14,6 +15,13 @@ interface SettingsClientProps {
 export function SettingsClient({ data }: SettingsClientProps) {
   const router = useRouter();
   const [signingOut, setSigningOut] = useState(false);
+  const [showIncomeHistory, setShowIncomeHistory] = useState(false);
+  const [targetSavingsRate, setTargetSavingsRate] = useState(data.targetSavingsRate);
+  const [savingRate, setSavingRate] = useState(false);
+  const [bucketDrafts, setBucketDrafts] = useState<Record<string, string>>(
+    Object.fromEntries(data.buckets.map((bucket) => [bucket.id, bucket.percentage.toFixed(2)])),
+  );
+  const [savingBuckets, setSavingBuckets] = useState(false);
 
   async function signOut() {
     setSigningOut(true);
@@ -24,6 +32,47 @@ export function SettingsClient({ data }: SettingsClientProps) {
       router.refresh();
     } finally {
       setSigningOut(false);
+    }
+  }
+
+  async function saveTargetSavingsRate(nextValue: number) {
+    setSavingRate(true);
+    try {
+      await fetch("/api/settings/target-savings-rate", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetSavingsRate: nextValue }),
+      });
+    } finally {
+      setSavingRate(false);
+    }
+  }
+
+  const bucketTotal = data.buckets.reduce(
+    (sum, bucket) => sum + Number(bucketDrafts[bucket.id] ?? bucket.percentage),
+    0,
+  );
+  const remainingPercentage = 100 - bucketTotal;
+  const bucketOver = remainingPercentage < -0.01;
+
+  async function saveBucketPercentages() {
+    if (bucketOver) return;
+    setSavingBuckets(true);
+    try {
+      await Promise.all(
+        data.buckets.map((bucket) =>
+          fetch(`/api/buckets/${bucket.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              percentage: Number(bucketDrafts[bucket.id] ?? bucket.percentage),
+            }),
+          }),
+        ),
+      );
+      router.refresh();
+    } finally {
+      setSavingBuckets(false);
     }
   }
 
@@ -63,6 +112,111 @@ export function SettingsClient({ data }: SettingsClientProps) {
               </p>
             </div>
           )}
+        </div>
+      </section>
+
+      <section className="border border-white/10 bg-card">
+        <div className="border-b border-white/10 px-4 py-3">
+          <p className="text-xs uppercase tracking-widest text-white/40">Income</p>
+          <h2 className="mt-1 text-lg font-medium text-foreground">Current and history</h2>
+        </div>
+        <div className="space-y-3 px-4 py-4 text-sm text-white/65">
+          {data.currentIncome.length === 0 ? (
+            <p className="text-white/45">No active income sources.</p>
+          ) : (
+            data.currentIncome.map((income) => (
+              <p key={income.id}>
+                <span className="text-white">{income.label}</span>:{" "}
+                <span className="tabular-nums">{formatNaira(income.amountMonthly)}/month</span>
+              </p>
+            ))
+          )}
+          <button
+            type="button"
+            onClick={() => setShowIncomeHistory((s) => !s)}
+            className="text-accent underline-offset-2 hover:underline"
+          >
+            {showIncomeHistory ? "Hide income history" : "View income history"}
+          </button>
+          {showIncomeHistory ? (
+            <div className="space-y-2 border-t border-white/10 pt-3">
+              {data.incomeHistory.map((row) => (
+                <div key={row.id} className={row.isCurrent ? "text-white" : "text-white/45"}>
+                  <p>{row.label}</p>
+                  <p className="text-xs tabular-nums">
+                    {formatNaira(row.amountMonthly)}/month {row.rangeLabel}
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      </section>
+
+      <section className="border border-white/10 bg-card">
+        <div className="border-b border-white/10 px-4 py-3">
+          <p className="text-xs uppercase tracking-widest text-white/40">Bucket percentages</p>
+          <h2 className="mt-1 text-lg font-medium text-foreground">Official split</h2>
+        </div>
+        <div className="space-y-3 px-4 py-4 text-sm text-white/65">
+          <p className="text-white/50">
+            Setting a percentage makes each bucket adapt to the selected month&apos;s income.
+          </p>
+          {data.buckets.map((bucket) => (
+            <div key={bucket.id} className="flex items-center gap-3">
+              <span
+                className="h-2.5 w-2.5 rounded-full"
+                style={{ backgroundColor: bucket.color }}
+                aria-hidden
+              />
+              <span className="flex-1 text-white">{bucket.name}</span>
+              <input
+                inputMode="decimal"
+                value={bucketDrafts[bucket.id] ?? ""}
+                onChange={(e) =>
+                  setBucketDrafts((prev) => ({ ...prev, [bucket.id]: e.target.value }))
+                }
+                className="h-9 w-20 border border-white/15 bg-background px-2 text-right text-sm"
+              />
+              <span className="text-white/45">%</span>
+            </div>
+          ))}
+          <p className={bucketOver ? "text-red-400" : "text-white/45"}>
+            Total {bucketTotal.toFixed(2)}% · Remaining {remainingPercentage.toFixed(2)}%
+          </p>
+          <button
+            type="button"
+            disabled={savingBuckets || bucketOver}
+            onClick={() => void saveBucketPercentages()}
+            className="min-h-11 border border-accent bg-accent px-4 py-2 text-sm text-accent-foreground disabled:opacity-40"
+          >
+            {savingBuckets ? "Saving..." : "Save bucket percentages"}
+          </button>
+        </div>
+      </section>
+
+      <section className="border border-white/10 bg-card">
+        <div className="border-b border-white/10 px-4 py-3">
+          <p className="text-xs uppercase tracking-widest text-white/40">Savings target</p>
+          <h2 className="mt-1 text-lg font-medium text-foreground">Monthly goal</h2>
+        </div>
+        <div className="px-4 py-4 text-sm text-white/65">
+          <p className="mb-3">Set the savings rate used for monthly savings streaks.</p>
+          <div className="flex items-center gap-3">
+            <input
+              type="range"
+              min={0}
+              max={80}
+              step={1}
+              value={targetSavingsRate}
+              onChange={(e) => setTargetSavingsRate(Number(e.target.value))}
+              onMouseUp={() => void saveTargetSavingsRate(targetSavingsRate)}
+              onTouchEnd={() => void saveTargetSavingsRate(targetSavingsRate)}
+              className="w-full"
+            />
+            <span className="w-12 text-right text-white">{targetSavingsRate}%</span>
+          </div>
+          <p className="mt-2 text-xs text-white/45">{savingRate ? "Saving…" : "Saved automatically"}</p>
         </div>
       </section>
 

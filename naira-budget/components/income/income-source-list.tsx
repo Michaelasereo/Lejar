@@ -38,7 +38,13 @@ export function IncomeSourceList({
       toast.error(typeof j.error === "string" ? j.error : "Could not add income");
       return;
     }
+    const payload = (await res.json().catch(() => ({}))) as {
+      allocationsRecalculated?: boolean;
+    };
     toast.success("Income source added");
+    if (payload.allocationsRecalculated) {
+      toast.success("Income updated — bucket allocations recalculated automatically");
+    }
     onAddDraftChange({ label: "", amount: "" });
     onRefresh();
   }

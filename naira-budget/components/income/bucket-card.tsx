@@ -3,7 +3,11 @@
 import { useMemo, useState } from "react";
 import { ChevronDown, Pencil, Trash2, Check, X } from "lucide-react";
 import { toast } from "sonner";
-import { formatNaira } from "@/lib/utils/currency";
+import {
+  amountToPercentage,
+  formatNaira,
+  percentageToAmount,
+} from "@/lib/utils/currency";
 import { parseAmountInput } from "@/lib/income/money";
 import { AllocationForm } from "@/components/income/allocation-form";
 import { cn } from "@/lib/utils/cn";
@@ -12,6 +16,7 @@ interface Allocation {
   id: string;
   label: string;
   amount: number;
+  percentage: number;
   platform: string;
   allocationType: string;
 }
@@ -21,7 +26,11 @@ interface BucketCardProps {
   name: string;
   color: string;
   allocatedAmount: number;
+  percentage: number;
+  allocationPercentage: number;
+  hasAllocationMismatch: boolean;
   allocations: Allocation[];
+  totalIncome: number;
   onRefresh: () => void;
 }
 
@@ -38,30 +47,27 @@ function platformLabel(code: string): string {
 }
 
 function AllocationRow({
-  cap,
   allocation,
-  othersSum,
+  totalIncome,
   onRefresh,
 }: {
-  cap: number;
   allocation: Allocation;
-  othersSum: number;
+  totalIncome: number;
   onRefresh: () => void;
 }) {
   const [editing, setEditing] = useState(false);
+  const [mode, setMode] = useState<"percent" | "amount">("percent");
   const [draftLabel, setDraftLabel] = useState(allocation.label);
+  const [draftPercentage, setDraftPercentage] = useState(allocation.percentage.toFixed(2));
   const [draftAmount, setDraftAmount] = useState(String(Math.round(allocation.amount)));
 
-  const maxForThis = cap - othersSum;
-
   async function save() {
-    const amt = parseAmountInput(draftAmount);
-    if (!draftLabel.trim() || amt <= 0) {
-      toast.error("Enter a label and a positive amount.");
-      return;
-    }
-    if (amt > maxForThis + 1e-9) {
-      toast.error("Amount exceeds what’s left in this bucket.");
+    const pct =
+      mode === "percent"
+        ? parseAmountInput(draftPercentage)
+        : amountToPercentage(parseAmountInput(draftAmount), totalIncome);
+    if (!draftLabel.trim() || pct <= 0 || pct > 100) {
+      toast.error("Enter a label and a valid percentage.");
       return;
     }
     const res = await fetch(`/api/allocations/${allocation.id}`, {
@@ -69,7 +75,7 @@ function AllocationRow({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         label: draftLabel.trim(),
-        amount: amt,
+        percentage: pct,
       }),
     });
     if (!res.ok) {
@@ -103,12 +109,6 @@ function AllocationRow({
             onChange={(e) => setDraftLabel(e.target.value)}
             className="min-h-9 min-w-[100px] flex-1 border border-white/15 bg-background px-2 py-1.5 text-sm"
           />
-          <input
-            inputMode="decimal"
-            value={draftAmount}
-            onChange={(e) => setDraftAmount(e.target.value)}
-            className="min-h-9 w-28 border border-white/15 bg-background px-2 py-1.5 text-sm tabular-nums"
-          />
           <button
             type="button"
             onClick={() => void save()}
@@ -122,6 +122,7 @@ function AllocationRow({
             onClick={() => {
               setEditing(false);
               setDraftLabel(allocation.label);
+              setDraftPercentage(allocation.percentage.toFixed(2));
               setDraftAmount(String(Math.round(allocation.amount)));
             }}
             className="inline-flex min-h-9 min-w-9 items-center justify-center border border-white/15"
@@ -139,7 +140,13 @@ function AllocationRow({
             {platformLabel(allocation.platform)}
           </span>
           <span className="min-w-[80px] flex-1 text-foreground">{allocation.label}</span>
-          <span className="tabular-nums text-white/80">{formatNaira(allocation.amount)}</span>
+          {editing ? null : (
+            <div className="flex items-center gap-2 text-xs text-white/70">
+              <span>{allocation.percentage.toFixed(2)}%</span>
+              <span>=</span>
+              <span className="tabular-nums">{formatNaira(allocation.amount)}</span>
+            </div>
+          )}
           <button
             type="button"
             onClick={() => setEditing(true)}
@@ -158,6 +165,63 @@ function AllocationRow({
           </button>
         </>
       )}
+      {editing ? (
+        <div className="mt-2 flex w-full flex-wrap items-center gap-2 pl-0 sm:pl-[110px]">
+          <button
+            type="button"
+            onClick={() => setMode("percent")}
+            className={cn(
+              "border px-2 py-1 text-[10px]",
+              mode === "percent" ? "border-accent text-accent" : "border-white/15 text-white/50",
+            )}
+          >
+            %
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode("amount")}
+            className={cn(
+              "border px-2 py-1 text-[10px]",
+              mode === "amount" ? "border-accent text-accent" : "border-white/15 text-white/50",
+            )}
+          >
+            ₦
+          </button>
+          {mode === "percent" ? (
+            <div className="flex items-center gap-1">
+              <input
+                inputMode="decimal"
+                value={draftPercentage}
+                onChange={(e) => setDraftPercentage(e.target.value)}
+                className="h-9 w-[70px] border border-white/10 bg-white/5 px-2 text-center text-sm outline-none focus:border-white/30"
+              />
+              <span className="text-white/40">%</span>
+            </div>
+          ) : (
+            <input
+              inputMode="decimal"
+              value={draftAmount}
+              onChange={(e) => setDraftAmount(e.target.value)}
+              className="h-9 w-28 border border-white/10 bg-white/5 px-2 text-sm outline-none focus:border-white/30"
+            />
+          )}
+          <span
+            className="text-xs text-white/40"
+            title={`Calculated from ${
+              mode === "percent"
+                ? parseAmountInput(draftPercentage).toFixed(2)
+                : amountToPercentage(parseAmountInput(draftAmount), totalIncome).toFixed(2)
+            }% of ${formatNaira(totalIncome)} total income`}
+          >
+            ={" "}
+            {formatNaira(
+              mode === "percent"
+                ? percentageToAmount(parseAmountInput(draftPercentage), totalIncome)
+                : parseAmountInput(draftAmount),
+            )}
+          </span>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -167,23 +231,26 @@ export function BucketCard({
   name,
   color,
   allocatedAmount,
+  percentage,
+  allocationPercentage,
+  hasAllocationMismatch,
   allocations,
+  totalIncome,
   onRefresh,
 }: BucketCardProps) {
   const [open, setOpen] = useState(false);
   const [editingBucket, setEditingBucket] = useState(false);
   const [draftName, setDraftName] = useState(name);
   const [draftAmount, setDraftAmount] = useState(String(Math.round(allocatedAmount)));
+  const [draftPercentage, setDraftPercentage] = useState(percentage.toFixed(2));
 
   const sumAlloc = useMemo(
     () => allocations.reduce((s, a) => s + a.amount, 0),
     [allocations],
   );
-  const unassigned = Math.max(0, allocatedAmount - sumAlloc);
-  const maxNewAlloc = unassigned;
-
   async function saveBucket() {
     const amt = parseAmountInput(draftAmount);
+    const pct = parseAmountInput(draftPercentage);
     if (!draftName.trim() || amt < 0) {
       toast.error("Enter a name and a valid amount.");
       return;
@@ -194,6 +261,7 @@ export function BucketCard({
       body: JSON.stringify({
         name: draftName.trim(),
         allocatedAmount: amt,
+        percentage: pct,
       }),
     });
     if (!res.ok) {
@@ -231,7 +299,10 @@ export function BucketCard({
           aria-hidden
         />
         <span className="flex-1 text-sm font-medium text-foreground">{name}</span>
-        <span className="text-sm tabular-nums text-white/70">{formatNaira(allocatedAmount)}</span>
+        <span className="text-right text-xs tabular-nums text-white/70">
+          <span className="block">{percentage.toFixed(2)}%</span>
+          <span className="block">{formatNaira(allocatedAmount)}</span>
+        </span>
         <ChevronDown
           className={cn("h-5 w-5 shrink-0 text-white/35 transition-transform", open && "rotate-180")}
         />
@@ -252,6 +323,15 @@ export function BucketCard({
                 onChange={(e) => setDraftAmount(e.target.value)}
                 className="min-h-10 w-36 border border-white/15 bg-background px-3 py-2 text-sm"
               />
+              <div className="flex items-center gap-1">
+                <input
+                  inputMode="decimal"
+                  value={draftPercentage}
+                  onChange={(e) => setDraftPercentage(e.target.value)}
+                  className="min-h-10 w-24 border border-white/15 bg-background px-3 py-2 text-sm"
+                />
+                <span className="text-xs text-white/45">%</span>
+              </div>
               <div className="flex gap-1">
                 <button
                   type="button"
@@ -266,6 +346,7 @@ export function BucketCard({
                     setEditingBucket(false);
                     setDraftName(name);
                     setDraftAmount(String(Math.round(allocatedAmount)));
+                    setDraftPercentage(percentage.toFixed(2));
                   }}
                   className="min-h-10 border border-white/15 px-3 text-sm"
                 >
@@ -280,6 +361,7 @@ export function BucketCard({
                 onClick={() => {
                   setDraftName(name);
                   setDraftAmount(String(Math.round(allocatedAmount)));
+                  setDraftPercentage(percentage.toFixed(2));
                   setEditingBucket(true);
                 }}
                 className="inline-flex min-h-9 items-center gap-1.5 border border-white/15 px-3 text-xs uppercase tracking-wide text-white/60 hover:border-white/30"
@@ -302,34 +384,35 @@ export function BucketCard({
             {allocations.length > 0 ? (
               <>
                 Allocations total {formatNaira(sumAlloc)}
-                {unassigned > 0.01 && (
-                  <span className="text-amber-400/90">
-                    {" "}
-                    · Unassigned {formatNaira(unassigned)}
-                  </span>
-                )}
+                <span className="text-white/35">
+                  {" "}
+                  · {allocationPercentage.toFixed(2)}% of {percentage.toFixed(2)}%
+                </span>
               </>
             ) : (
               <>No breakdown yet — bucket total is {formatNaira(allocatedAmount)}.</>
             )}
           </p>
+          {hasAllocationMismatch ? (
+            <p className="mt-2 inline-flex border border-amber-500/35 bg-amber-500/10 px-2 py-1 text-[11px] text-amber-300">
+              Allocation percentages do not match this bucket&apos;s official percentage.
+            </p>
+          ) : null}
 
           <div className="mt-2">
             {allocations.map((a) => {
-              const othersSum = sumAlloc - a.amount;
               return (
                 <AllocationRow
                   key={a.id}
-                  cap={allocatedAmount}
                   allocation={a}
-                  othersSum={othersSum}
+                  totalIncome={totalIncome}
                   onRefresh={onRefresh}
                 />
               );
             })}
           </div>
 
-          <AllocationForm bucketId={id} maxAmount={maxNewAlloc} onCreated={onRefresh} />
+          <AllocationForm bucketId={id} totalIncome={totalIncome} onCreated={onRefresh} />
         </div>
       )}
     </div>
