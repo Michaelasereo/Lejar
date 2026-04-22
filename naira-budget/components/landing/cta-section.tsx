@@ -26,6 +26,15 @@ export function CtaSection() {
         <h2 className="mb-8 text-3xl font-medium tracking-tight text-foreground md:text-5xl">
           Ready to take control?
         </h2>
+        <p className="mb-4 text-xs uppercase tracking-[0.16em] text-white/40">
+          A product of Quiet Technologies.
+        </p>
+        <blockquote className="mx-auto mb-4 max-w-2xl text-sm italic leading-relaxed text-white/60 md:text-base">
+          Success comes from intentionality, and those who succeed with money are intentional with it.
+        </blockquote>
+        <p className="mb-8 text-xs text-white/45 md:text-sm">
+          Asere Opeyemi-Michael, Co-Founder & CEO, Orjar finance.
+        </p>
         <Link
           href="/signup"
           prefetch={false}

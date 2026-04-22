@@ -3,6 +3,7 @@ import { CtaSection } from "@/components/landing/cta-section";
 import { FeaturesSection } from "@/components/landing/features-section";
 import { FooterSection } from "@/components/landing/footer-section";
 import { ForWhoSection } from "@/components/landing/for-who-section";
+import { AppShowcase } from "@/components/landing/app-showcase";
 import { HeroSection } from "@/components/landing/hero-section";
 import { HowSection } from "@/components/landing/how-section";
 import { LandingNavbar } from "@/components/landing/navbar";
@@ -36,6 +37,7 @@ export default function HomePage() {
         <ScrollReveal>
           <HeroSection />
         </ScrollReveal>
+        <AppShowcase />
         <MarqueeStrip />
         <ScrollReveal>
           <FeaturesSection />
