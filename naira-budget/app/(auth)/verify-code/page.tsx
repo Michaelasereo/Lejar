@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { Suspense, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Mail } from "lucide-react";
@@ -11,6 +11,23 @@ const CODE_LENGTH = 6;
 const RESEND_SECONDS = 60;
 
 export default function VerifyCodePage() {
+  return (
+    <Suspense fallback={<VerifyCodeFallback />}>
+      <VerifyCodeClient />
+    </Suspense>
+  );
+}
+
+function VerifyCodeFallback() {
+  return (
+    <div className="mx-auto max-w-md text-center">
+      <h1 className="text-2xl font-medium text-foreground">Enter your code</h1>
+      <p className="mt-2 text-sm text-white/50">Loading verification...</p>
+    </div>
+  );
+}
+
+function VerifyCodeClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const email = (searchParams.get("email") ?? "").trim();
