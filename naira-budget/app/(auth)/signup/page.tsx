@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -13,6 +13,23 @@ import { LoadingButton } from "@/components/ui/LoadingButton";
 const PENDING_SIGNUP_KEY = "pending-signup";
 
 export default function SignupPage() {
+  return (
+    <Suspense fallback={<SignupPageFallback />}>
+      <SignupPageClient />
+    </Suspense>
+  );
+}
+
+function SignupPageFallback() {
+  return (
+    <div>
+      <h1 className="text-2xl font-medium tracking-tight text-foreground">Create your account</h1>
+      <p className="mt-2 text-sm text-white/50">Loading sign up...</p>
+    </div>
+  );
+}
+
+function SignupPageClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [showPassword, setShowPassword] = useState(false);

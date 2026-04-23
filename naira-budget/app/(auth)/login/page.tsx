@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -13,6 +13,23 @@ import { cn } from "@/lib/utils/cn";
 import { LoadingButton } from "@/components/ui/LoadingButton";
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={<LoginPageFallback />}>
+      <LoginPageClient />
+    </Suspense>
+  );
+}
+
+function LoginPageFallback() {
+  return (
+    <div>
+      <h1 className="text-2xl font-medium tracking-tight text-foreground">Welcome back</h1>
+      <p className="mt-2 text-sm text-white/50">Loading sign in...</p>
+    </div>
+  );
+}
+
+function LoginPageClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [showPassword, setShowPassword] = useState(false);
