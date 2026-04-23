@@ -52,7 +52,6 @@ export async function POST(req: NextRequest) {
     effectiveFrom,
     effectiveTo,
     incomeTiming,
-    monthOnlyStorageMode,
     allocationDirective,
   } = parsed.data;
 
@@ -63,11 +62,9 @@ export async function POST(req: NextRequest) {
     const endDate =
       incomeTiming === "DURATION" && effectiveTo
         ? endOfMonth(parseMonthParam(effectiveTo).date)
-        : incomeTiming === "MONTH_ONLY" && monthOnlyStorageMode === "BOUNDED_SOURCE"
+        : incomeTiming === "MONTH_ONLY"
           ? endOfMonth(startDate)
           : null;
-    const shouldCreateOverride =
-      incomeTiming === "MONTH_ONLY" && monthOnlyStorageMode === "OVERRIDE";
     const bucketTotal = await prisma.bucket.aggregate({
       where: { userId: auth.user.id },
       _sum: { percentage: true },
@@ -79,11 +76,7 @@ export async function POST(req: NextRequest) {
     const monthIncomeBefore = await getIncomeForMonth(auth.user.id, startMonth.year, startMonth.month);
     const monthIncomeAfter = monthIncomeBefore + amountMonthly;
 
-    if (
-      allocationDirective.mode === "NEW_BUCKET" &&
-      !shouldCreateOverride &&
-      totalIncomeAfter > 0
-    ) {
+    if (allocationDirective.mode === "NEW_BUCKET" && totalIncomeAfter > 0) {
       const nextBucketPercentage = (amountMonthly / totalIncomeAfter) * 100;
       if (existingBucketPercentage + nextBucketPercentage > 100 + 1e-9) {
         return NextResponse.json(
@@ -99,7 +92,6 @@ export async function POST(req: NextRequest) {
     let createdIncomeId: string | null = null;
     let createdIncomeLabel: string | null = null;
     let createdIncomeAmountMonthly: string | null = null;
-    let overrideMonthKey: string | null = null;
 
     await prisma.$transaction(async (tx) => {
       const currentBuckets = await tx.bucket.findMany({
@@ -131,24 +123,6 @@ export async function POST(req: NextRequest) {
           Math.round(((bucket.percentage ?? 0) / 100) * monthIncomeBefore),
         percentage: monthOverrideMap.get(bucket.id)?.percentage ?? (bucket.percentage ?? 0),
       }));
-
-      if (shouldCreateOverride) {
-        await tx.monthlyIncomeOverride.upsert({
-          where: { userId_monthKey: { userId: auth.user.id, monthKey: startMonthKey } },
-          update: {
-            amount: new Prisma.Decimal(monthIncomeAfter),
-            note: `Includes ${label}`,
-          },
-          create: {
-            userId: auth.user.id,
-            monthKey: startMonthKey,
-            amount: new Prisma.Decimal(monthIncomeAfter),
-            note: `Includes ${label}`,
-          },
-        });
-        overrideMonthKey = startMonthKey;
-        return;
-      }
 
       const row = await tx.incomeSource.create({
         data: {
@@ -257,24 +231,22 @@ export async function POST(req: NextRequest) {
     });
 
     const now = new Date();
-    const monthsToRefresh = overrideMonthKey
-      ? [{ year: startMonth.year, month: startMonth.month }]
-      : getMonthsBetween(
-          startDate.getFullYear(),
-          startDate.getMonth() + 1,
-          now.getFullYear(),
-          now.getMonth() + 1,
-        );
+    const monthsToRefresh = getMonthsBetween(
+      startDate.getFullYear(),
+      startDate.getMonth() + 1,
+      now.getFullYear(),
+      now.getMonth() + 1,
+    );
     await refreshSnapshotsForMonths(prisma, auth.user.id, monthsToRefresh);
     const recalc = await recalculateAllocationAmountsForUser(auth.user.id);
 
     return NextResponse.json(
       {
-        id: createdIncomeId ?? overrideMonthKey,
+        id: createdIncomeId,
         label: createdIncomeLabel ?? label,
         amountMonthly: createdIncomeAmountMonthly ?? String(amountMonthly),
         allocationsRecalculated: recalc.updatedCount > 0,
-        overrideMonthKey,
+        overrideMonthKey: null,
       },
       { status: 201 },
     );

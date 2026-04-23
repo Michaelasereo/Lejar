@@ -11,11 +11,8 @@ export async function getIncomeForMonth(
   const monthKey = formatMonthParam(year, month);
   const override = await prisma.monthlyIncomeOverride.findUnique({
     where: { userId_monthKey: { userId, monthKey } },
-    select: { amount: true },
+    select: { amount: true, note: true },
   });
-  if (override) {
-    return Number(override.amount);
-  }
 
   const monthStart = startOfMonth(new Date(year, month - 1, 1));
   const monthEnd = endOfMonth(new Date(year, month - 1, 1));
@@ -28,6 +25,13 @@ export async function getIncomeForMonth(
       OR: [{ effectiveTo: null }, { effectiveTo: { gte: monthStart } }],
     },
   });
+
+  if (override) {
+    const isLegacyIncludeOverride = override.note?.startsWith("Includes ");
+    if (!isLegacyIncludeOverride || incomes.length === 0) {
+      return Number(override.amount);
+    }
+  }
 
   return incomes.reduce((sum, income) => sum + Number(income.amountMonthly), 0);
 }

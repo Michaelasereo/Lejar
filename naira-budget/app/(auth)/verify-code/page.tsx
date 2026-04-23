@@ -49,15 +49,54 @@ function VerifyCodeClient() {
     setIsSubmitting(true);
     setError(null);
     const supabase = createClient();
-    const verifyType = type === "signup" ? "signup" : "magiclink";
-    const { error: verifyError } = await supabase.auth.verifyOtp({
-      email,
-      token: codeValue,
-      type: verifyType,
+    let pendingSignup:
+      | {
+          email?: string;
+          password?: string;
+          fullName?: string;
+        }
+      | undefined;
+    if (type === "signup" && typeof window !== "undefined") {
+      const rawPending = window.sessionStorage.getItem(PENDING_SIGNUP_KEY);
+      if (rawPending) {
+        try {
+          pendingSignup = JSON.parse(rawPending) as {
+            email?: string;
+            password?: string;
+            fullName?: string;
+          };
+        } catch {
+          window.sessionStorage.removeItem(PENDING_SIGNUP_KEY);
+        }
+      }
+    }
+
+    const response = await fetch("/api/auth/verify-code", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email,
+        code: codeValue,
+        purpose: type,
+        password:
+          type === "signup" &&
+          pendingSignup?.email?.toLowerCase() === email.toLowerCase()
+            ? pendingSignup.password
+            : undefined,
+        fullName:
+          type === "signup" &&
+          pendingSignup?.email?.toLowerCase() === email.toLowerCase()
+            ? pendingSignup.fullName
+            : undefined,
+      }),
     });
+    const verifyPayload = (await response.json().catch(() => ({}))) as {
+      error?: string;
+      session?: { access_token: string; refresh_token: string };
+    };
     setIsSubmitting(false);
-    if (verifyError) {
-      setError("Invalid code. Try again.");
+    if (!response.ok) {
+      setError(verifyPayload.error ?? "Invalid code. Try again.");
       setDigits(Array(CODE_LENGTH).fill(""));
       refs.current[0]?.focus();
       setShake(true);
@@ -66,35 +105,75 @@ function VerifyCodeClient() {
     }
 
     if (type === "signup") {
+      const signupPassword =
+        pendingSignup?.email?.toLowerCase() === email.toLowerCase() ? pendingSignup.password : undefined;
+      if (!signupPassword) {
+        setError("Session expired. Please sign up again.");
+        return;
+      }
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password: signupPassword,
+      });
+      if (signInError) {
+        setError("Code is valid, but login failed. Try again.");
+        return;
+      }
       if (typeof window !== "undefined") {
-        const rawPending = window.sessionStorage.getItem(PENDING_SIGNUP_KEY);
-        if (rawPending) {
-          try {
-            const pending = JSON.parse(rawPending) as {
-              email?: string;
-              password?: string;
-            };
-            if (
-              pending.email?.toLowerCase() === email.toLowerCase() &&
-              pending.password
-            ) {
-              const { error: passwordError } = await supabase.auth.updateUser({
-                password: pending.password,
-              });
-              if (passwordError) {
-                setError("Code is valid, but we could not finish setup. Try again.");
-                return;
-              }
-              window.sessionStorage.removeItem(PENDING_SIGNUP_KEY);
-            }
-          } catch {
-            window.sessionStorage.removeItem(PENDING_SIGNUP_KEY);
-          }
-        }
+        window.sessionStorage.removeItem(PENDING_SIGNUP_KEY);
       }
       await fetch("/api/auth/welcome", { method: "POST" }).catch(() => null);
+    } else {
+      const session = verifyPayload.session;
+      if (!session) {
+        setError("Code is valid, but login session could not be created.");
+        return;
+      }
+      const { error: sessionError } = await supabase.auth.setSession({
+        access_token: session.access_token,
+        refresh_token: session.refresh_token,
+      });
+      if (sessionError) {
+        setError("Code is valid, but login failed. Try again.");
+        return;
+      }
     }
     router.replace("/app/dashboard");
+  }
+
+  async function resendCode() {
+    if (!email || resendIn > 0) return;
+    setResendMsg(null);
+    let fullName: string | undefined;
+    if (type === "signup" && typeof window !== "undefined") {
+      const rawPending = window.sessionStorage.getItem(PENDING_SIGNUP_KEY);
+      if (rawPending) {
+        try {
+          const pending = JSON.parse(rawPending) as { email?: string; fullName?: string };
+          if (pending.email?.toLowerCase() === email.toLowerCase()) {
+            fullName = pending.fullName;
+          }
+        } catch {
+          window.sessionStorage.removeItem(PENDING_SIGNUP_KEY);
+        }
+      }
+    }
+    const response = await fetch("/api/auth/send-code", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email,
+        purpose: type,
+        fullName,
+      }),
+    });
+    const payload = (await response.json().catch(() => ({}))) as { error?: string };
+    if (!response.ok) {
+      setResendMsg(payload.error ?? "Could not resend code.");
+      return;
+    }
+    setResendMsg("Code resent.");
+    startResendCountdown();
   }
 
   function setDigit(index: number, raw: string) {
@@ -160,34 +239,6 @@ function VerifyCodeClient() {
         return prev - 1;
       });
     }, 1000);
-  }
-
-  async function resendCode() {
-    if (!email || resendIn > 0) return;
-    setResendMsg(null);
-    const supabase = createClient();
-    const resendError =
-      type === "signup"
-        ? (
-            await supabase.auth.signInWithOtp({
-              email,
-              options: {
-                shouldCreateUser: true,
-              },
-            })
-          ).error
-        : (
-            await supabase.auth.signInWithOtp({
-              email,
-              options: { shouldCreateUser: false },
-            })
-          ).error;
-    if (resendError) {
-      setResendMsg(resendError.message);
-      return;
-    }
-    setResendMsg("Code resent.");
-    startResendCountdown();
   }
 
   return (

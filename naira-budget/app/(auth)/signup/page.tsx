@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { Eye, EyeOff } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
 import { signupSchema, type SignupFormValues } from "@/lib/validations/auth";
 import { cn } from "@/lib/utils/cn";
 import { LoadingButton } from "@/components/ui/LoadingButton";
@@ -33,17 +32,19 @@ export default function SignupPage() {
 
   async function onSubmit(data: SignupFormValues) {
     setSubmitError(null);
-    const supabase = createClient();
-    const { error } = await supabase.auth.signInWithOtp({
-      email: data.email,
-      options: {
-        shouldCreateUser: true,
-        data: { full_name: data.fullName },
-      },
+    const response = await fetch("/api/auth/send-code", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: data.email,
+        purpose: "signup",
+        fullName: data.fullName,
+      }),
     });
+    const payload = (await response.json().catch(() => ({}))) as { error?: string };
 
-    if (error) {
-      setSubmitError(error.message);
+    if (!response.ok) {
+      setSubmitError(payload.error ?? "Could not send verification code.");
       return;
     }
 

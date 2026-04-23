@@ -77,15 +77,17 @@ export default function LoginPage() {
       setAuthError("Enter your email above first.");
       return;
     }
-    const supabase = createClient();
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        shouldCreateUser: false,
-      },
+    const response = await fetch("/api/auth/send-code", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email,
+        purpose: "login",
+      }),
     });
-    if (error) {
-      setAuthError(error.message);
+    const payload = (await response.json().catch(() => ({}))) as { error?: string };
+    if (!response.ok) {
+      setAuthError(payload.error ?? "Could not send verification code.");
       return;
     }
     setMagicStatus("Code sent. Enter it to continue.");
