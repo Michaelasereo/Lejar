@@ -33,6 +33,7 @@ function VerifyCodeClient() {
   const searchParams = useSearchParams();
   const email = (searchParams.get("email") ?? "").trim();
   const type = searchParams.get("type") === "login" ? "login" : "signup";
+  const redirectTo = searchParams.get("redirect") || "/app/dashboard";
 
   const [digits, setDigits] = useState<string[]>(Array(CODE_LENGTH).fill(""));
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -138,7 +139,7 @@ function VerifyCodeClient() {
         return;
       }
     }
-    router.replace("/app/dashboard");
+    router.replace(redirectTo);
   }
 
   async function resendCode() {
@@ -302,7 +303,13 @@ function VerifyCodeClient() {
 
       <p className="mt-5 text-sm text-white/45">
         Wrong email?{" "}
-        <Link href={type === "login" ? "/login" : "/signup"} className="text-white/70 hover:text-white">
+        <Link
+          href={`${type === "login" ? "/login" : "/signup"}?${new URLSearchParams({
+            ...(email ? { email } : {}),
+            ...(redirectTo ? { redirect: redirectTo } : {}),
+          }).toString()}`}
+          className="text-white/70 hover:text-white"
+        >
           Go back
         </Link>
       </p>

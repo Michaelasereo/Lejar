@@ -76,7 +76,7 @@ export async function sendGroupJarInvite(params: {
   notes?: string;
   inviteToken: string;
 }): Promise<void> {
-  const inviteUrl = `${APP_URL}/app/jars/invite/${params.inviteToken}`;
+  const inviteUrl = `${APP_URL}/jars/invite/${params.inviteToken}`;
   const html = await render(
     GroupJarInviteEmail({
       inviterName: params.inviterName,

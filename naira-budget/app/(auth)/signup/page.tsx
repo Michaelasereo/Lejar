@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { Eye, EyeOff } from "lucide-react";
@@ -14,8 +14,11 @@ const PENDING_SIGNUP_KEY = "pending-signup";
 
 export default function SignupPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [showPassword, setShowPassword] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const redirectTo = searchParams.get("redirect") || "/app/dashboard";
+  const prefilledEmail = searchParams.get("email")?.trim() ?? "";
 
   const {
     register,
@@ -25,7 +28,7 @@ export default function SignupPage() {
     resolver: zodResolver(signupSchema),
     defaultValues: {
       fullName: "",
-      email: "",
+      email: prefilledEmail,
       password: "",
     },
   });
@@ -57,7 +60,9 @@ export default function SignupPage() {
       window.sessionStorage.setItem(PENDING_SIGNUP_KEY, JSON.stringify(payload));
     }
 
-    router.push(`/verify-code?email=${encodeURIComponent(data.email)}&type=signup`);
+    router.push(
+      `/verify-code?email=${encodeURIComponent(data.email)}&type=signup&redirect=${encodeURIComponent(redirectTo)}`,
+    );
   }
 
   return (
@@ -181,7 +186,10 @@ export default function SignupPage() {
       <p className="mt-8 text-center text-sm text-white/50">
         Already have an account?{" "}
         <Link
-          href="/login"
+          href={`/login?${new URLSearchParams({
+            ...(prefilledEmail ? { email: prefilledEmail } : {}),
+            ...(redirectTo ? { redirect: redirectTo } : {}),
+          }).toString()}`}
           prefetch={false}
           className="font-medium text-white/80 underline-offset-4 hover:underline"
         >

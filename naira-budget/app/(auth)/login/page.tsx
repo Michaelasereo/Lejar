@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { Eye, EyeOff } from "lucide-react";
@@ -14,9 +14,12 @@ import { LoadingButton } from "@/components/ui/LoadingButton";
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [showPassword, setShowPassword] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [magicStatus, setMagicStatus] = useState<string | null>(null);
+  const redirectTo = searchParams.get("redirect") || "/app/dashboard";
+  const prefilledEmail = searchParams.get("email")?.trim() ?? "";
 
   const {
     register,
@@ -26,7 +29,7 @@ export default function LoginPage() {
   } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      email: "",
+      email: prefilledEmail,
       password: "",
     },
   });
@@ -47,7 +50,7 @@ export default function LoginPage() {
 
     // Full navigation avoids React Flight "Connection closed" on Netlify after
     // client-side router transitions from /login (RSC stream + edge timing).
-    window.location.assign("/app/dashboard");
+    window.location.assign(redirectTo);
   }
 
   async function handleForgotPassword() {
@@ -91,7 +94,9 @@ export default function LoginPage() {
       return;
     }
     setMagicStatus("Code sent. Enter it to continue.");
-    router.push(`/verify-code?email=${encodeURIComponent(email)}&type=login`);
+    router.push(
+      `/verify-code?email=${encodeURIComponent(email)}&type=login&redirect=${encodeURIComponent(redirectTo)}`,
+    );
   }
 
   return (
@@ -214,7 +219,10 @@ export default function LoginPage() {
       <p className="mt-8 text-center text-sm text-white/50">
         Don&apos;t have an account?{" "}
         <Link
-          href="/signup"
+          href={`/signup?${new URLSearchParams({
+            ...(prefilledEmail ? { email: prefilledEmail } : {}),
+            ...(redirectTo ? { redirect: redirectTo } : {}),
+          }).toString()}`}
           prefetch={false}
           className="font-medium text-white/80 underline-offset-4 hover:underline"
         >
