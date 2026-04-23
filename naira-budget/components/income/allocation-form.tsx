@@ -13,6 +13,7 @@ import {
 } from "@/lib/income/constants";
 import { parseAmountInput } from "@/lib/income/money";
 import { cn } from "@/lib/utils/cn";
+import { LoadingButton } from "@/components/ui/LoadingButton";
 
 interface AllocationFormProps {
   bucketId: string;
@@ -152,13 +153,15 @@ export function AllocationForm({ bucketId, totalIncome, onCreated }: AllocationF
             </button>
           ))}
         </div>
-        <button
+        <LoadingButton
           type="submit"
-          disabled={submitting || totalIncome <= 0}
-          className="min-h-10 border border-accent bg-accent text-sm font-medium text-accent-foreground hover:bg-accent/90 disabled:cursor-not-allowed disabled:opacity-40"
+          state={submitting ? "loading" : "idle"}
+          loadingText="Adding..."
+          disabled={totalIncome <= 0}
+          size="md"
         >
           Add allocation
-        </button>
+        </LoadingButton>
       </div>
     </form>
   );

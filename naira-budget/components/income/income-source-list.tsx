@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { toast } from "sonner";
 import { formatNaira } from "@/lib/utils/currency";
 import { parseAmountInput } from "@/lib/income/money";
+import { LoadingButton } from "@/components/ui/LoadingButton";
 import { IncomeSourceRow } from "@/components/income/income-source-row";
 
 interface IncomeSourceListProps {
@@ -30,6 +32,7 @@ interface IncomeSourceListProps {
   }) => void;
   buckets: Array<{ id: string; name: string; color: string }>;
   onRefresh: () => void;
+  onIncomeChanged?: () => void;
 }
 
 export function IncomeSourceList({
@@ -39,9 +42,13 @@ export function IncomeSourceList({
   onAddDraftChange,
   buckets,
   onRefresh,
+  onIncomeChanged,
 }: IncomeSourceListProps) {
+  const [adding, setAdding] = useState(false);
+
   async function addIncome(e: React.FormEvent) {
     e.preventDefault();
+    if (adding) return;
     const label = addDraft.label.trim();
     const amt = parseAmountInput(addDraft.amount);
     if (!label || amt <= 0) {
@@ -56,48 +63,54 @@ export function IncomeSourceList({
       toast.error("Enter a name for the new bucket.");
       return;
     }
-    const res = await fetch("/api/income", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        label,
-        amountMonthly: amt,
-        effectiveFrom: addDraft.effectiveFrom,
-        incomeTiming: addDraft.thisMonthOnly ? "MONTH_ONLY" : "RECURRING",
-        monthOnlyStorageMode: addDraft.thisMonthOnly ? "BOUNDED_SOURCE" : undefined,
-        allocationDirective:
-          addDraft.allocationMode === "SINGLE_BUCKET"
-            ? { mode: "SINGLE_BUCKET", bucketId: addDraft.targetBucketId }
-            : addDraft.allocationMode === "NEW_BUCKET"
-              ? {
-                  mode: "NEW_BUCKET",
-                  bucketName: addDraft.newBucketName.trim(),
-                  bucketColor: addDraft.newBucketColor,
-                }
-              : { mode: "ADJUST_EXISTING" },
-      }),
-    });
-    if (!res.ok) {
-      const j = await res.json().catch(() => ({}));
-      toast.error(typeof j.error === "string" ? j.error : "Could not add income");
-      return;
+    setAdding(true);
+    try {
+      const res = await fetch("/api/income", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          label,
+          amountMonthly: amt,
+          effectiveFrom: addDraft.effectiveFrom,
+          incomeTiming: addDraft.thisMonthOnly ? "MONTH_ONLY" : "RECURRING",
+          monthOnlyStorageMode: addDraft.thisMonthOnly ? "BOUNDED_SOURCE" : undefined,
+          allocationDirective:
+            addDraft.allocationMode === "SINGLE_BUCKET"
+              ? { mode: "SINGLE_BUCKET", bucketId: addDraft.targetBucketId }
+              : addDraft.allocationMode === "NEW_BUCKET"
+                ? {
+                    mode: "NEW_BUCKET",
+                    bucketName: addDraft.newBucketName.trim(),
+                    bucketColor: addDraft.newBucketColor,
+                  }
+                : { mode: "ADJUST_EXISTING" },
+        }),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        toast.error(typeof j.error === "string" ? j.error : "Could not add income");
+        return;
+      }
+      const payload = (await res.json().catch(() => ({}))) as {
+        allocationsRecalculated?: boolean;
+      };
+      toast.success("Income source added");
+      if (payload.allocationsRecalculated) {
+        toast.success("Income updated — bucket allocations recalculated automatically");
+      }
+      onAddDraftChange({
+        ...addDraft,
+        label: "",
+        amount: "",
+        thisMonthOnly: false,
+        allocationMode: "ADJUST_EXISTING",
+        newBucketName: "",
+      });
+      onIncomeChanged?.();
+      onRefresh();
+    } finally {
+      setAdding(false);
     }
-    const payload = (await res.json().catch(() => ({}))) as {
-      allocationsRecalculated?: boolean;
-    };
-    toast.success("Income source added");
-    if (payload.allocationsRecalculated) {
-      toast.success("Income updated — bucket allocations recalculated automatically");
-    }
-    onAddDraftChange({
-      ...addDraft,
-      label: "",
-      amount: "",
-      thisMonthOnly: false,
-      allocationMode: "ADJUST_EXISTING",
-      newBucketName: "",
-    });
-    onRefresh();
   }
 
   return (
@@ -123,6 +136,7 @@ export function IncomeSourceList({
               label={s.label}
               amountMonthly={s.amountMonthly}
               onSaved={onRefresh}
+              onIncomeChanged={onIncomeChanged}
             />
           ))
         )}
@@ -147,12 +161,15 @@ export function IncomeSourceList({
             placeholder="Amount"
             className="min-h-11 w-full border border-white/15 bg-background px-3 py-2.5 text-sm outline-none focus:border-accent sm:w-40"
           />
-          <button
+          <LoadingButton
             type="submit"
-            className="min-h-11 border border-accent bg-accent px-5 py-2.5 text-sm font-medium text-accent-foreground hover:bg-accent/90"
+            state={adding ? "loading" : "idle"}
+            loadingText="Adding..."
+            size="md"
+            className="min-h-11 px-5"
           >
             Add
-          </button>
+          </LoadingButton>
         </div>
         <div className="mt-3 border border-white/10 bg-background/30 p-3">
           <div className="flex items-center gap-2">

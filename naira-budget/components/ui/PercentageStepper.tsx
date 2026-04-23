@@ -9,6 +9,9 @@ interface PercentageStepperProps {
   onChange: (value: number) => void;
   min?: number;
   max?: number;
+  step?: number;
+  precision?: number;
+  allowInput?: boolean;
 }
 
 export function PercentageStepper({
@@ -17,33 +20,57 @@ export function PercentageStepper({
   onChange,
   min = 1,
   max = 99,
+  step = 1,
+  precision = 0,
+  allowInput = false,
 }: PercentageStepperProps) {
-  const delta = value - originalValue;
-  const hasChanged = delta !== 0;
+  const roundedValue = Number(value.toFixed(precision));
+  const roundedOriginal = Number(originalValue.toFixed(precision));
+  const delta = Number((roundedValue - roundedOriginal).toFixed(precision));
+  const hasChanged = Math.abs(delta) > 10 ** -(precision + 1);
+
+  function clampAndRound(nextValue: number) {
+    const clamped = Math.max(min, Math.min(max, nextValue));
+    return Number(clamped.toFixed(precision));
+  }
 
   return (
     <div className="flex items-center gap-1">
       <button
         type="button"
-        onClick={() => onChange(Math.max(min, value - 1))}
-        disabled={value <= min}
+        onClick={() => onChange(clampAndRound(roundedValue - step))}
+        disabled={roundedValue <= min}
         className="flex h-6 w-6 items-center justify-center text-sm text-white/40 transition-all hover:bg-white/8 hover:text-white disabled:cursor-not-allowed disabled:opacity-20"
       >
         -
       </button>
-      <motion.span
-        key={value}
-        initial={{ scale: 1.2 }}
-        animate={{ scale: 1 }}
-        transition={{ duration: 0.1 }}
-        className="w-10 text-center text-sm font-medium text-white"
-      >
-        {value}%
-      </motion.span>
+      {allowInput ? (
+        <input
+          inputMode="decimal"
+          value={roundedValue.toFixed(precision)}
+          onChange={(event) => {
+            const parsed = Number(event.target.value);
+            if (!Number.isFinite(parsed)) return;
+            onChange(clampAndRound(parsed));
+          }}
+          className="h-7 w-16 border border-white/15 bg-transparent px-1 text-center text-sm font-medium text-white outline-none focus:border-accent"
+          aria-label="Percentage value"
+        />
+      ) : (
+        <motion.span
+          key={roundedValue}
+          initial={{ scale: 1.2 }}
+          animate={{ scale: 1 }}
+          transition={{ duration: 0.1 }}
+          className="w-12 text-center text-sm font-medium text-white"
+        >
+          {roundedValue.toFixed(precision)}%
+        </motion.span>
+      )}
       <button
         type="button"
-        onClick={() => onChange(Math.min(max, value + 1))}
-        disabled={value >= max}
+        onClick={() => onChange(clampAndRound(roundedValue + step))}
+        disabled={roundedValue >= max}
         className="flex h-6 w-6 items-center justify-center text-sm text-white/40 transition-all hover:bg-white/8 hover:text-white disabled:cursor-not-allowed disabled:opacity-20"
       >
         +
@@ -58,7 +85,7 @@ export function PercentageStepper({
             className={cn("ml-0.5 text-xs", delta < 0 ? "text-accent" : "text-amber-400")}
           >
             {delta > 0 ? "+" : ""}
-            {delta}%
+            {delta.toFixed(precision)}%
           </motion.span>
         ) : null}
       </AnimatePresence>

@@ -2,11 +2,99 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { requireUser } from "@/lib/auth/require-user";
 import { dateInputToDate } from "@/lib/investments/dates";
+import { applyMonthlyBucketOverridesToBudgets } from "@/lib/income/monthly-bucket-overrides";
+import { monthRange } from "@/lib/dashboard/get-dashboard-data";
 import { prisma } from "@/lib/prisma";
 import { refreshSnapshotsForMonths } from "@/lib/utils/analytics";
+import { getIncomeForMonth } from "@/lib/utils/income";
 import { updateExpenseSchema } from "@/lib/validations/expense";
 
 type RouteContext = { params: { id: string } };
+
+interface BucketBalanceWarning {
+  insufficientBucketBalance: boolean;
+  bucketName: string;
+  shortfall: number;
+  remainingBefore: number;
+  remainingAfter: number;
+}
+
+async function getBucketBalanceWarningAfterUpdate(
+  userId: string,
+  expenseId: string,
+  bucketId: string,
+  occurredAt: Date,
+  amountBefore: number,
+  amountAfter: number,
+): Promise<BucketBalanceWarning | null> {
+  const monthKey = `${occurredAt.getFullYear()}-${String(occurredAt.getMonth() + 1).padStart(2, "0")}`;
+  const range = monthRange(monthKey);
+  if (!range) return null;
+
+  const [bucketRows, monthIncome, monthlyExpenses] = await Promise.all([
+    prisma.bucket.findMany({
+      where: { userId },
+      orderBy: { sortOrder: "asc" },
+      select: {
+        id: true,
+        name: true,
+        color: true,
+        percentage: true,
+        allocatedAmount: true,
+      },
+    }),
+    getIncomeForMonth(userId, range.start.getFullYear(), range.start.getMonth() + 1),
+    prisma.expense.findMany({
+      where: {
+        userId,
+        id: { not: expenseId },
+        occurredAt: { gte: range.start, lte: range.end },
+        bucketId: { not: null },
+      },
+      select: {
+        bucketId: true,
+        amount: true,
+      },
+    }),
+  ]);
+
+  const bucketBase = bucketRows.map((bucket) => ({
+    id: bucket.id,
+    name: bucket.name,
+    color: bucket.color,
+    allocatedAmount:
+      typeof bucket.percentage === "number" && bucket.percentage > 0
+        ? Math.round((bucket.percentage / 100) * monthIncome)
+        : Number(bucket.allocatedAmount),
+    percentage: bucket.percentage ?? 0,
+  }));
+  const monthScopedBuckets = await applyMonthlyBucketOverridesToBudgets(
+    prisma,
+    userId,
+    range.start.getFullYear(),
+    range.start.getMonth() + 1,
+    bucketBase,
+  );
+  const targetBucket = monthScopedBuckets.find((bucket) => bucket.id === bucketId);
+  if (!targetBucket) return null;
+
+  const spentWithoutTargetExpense = monthlyExpenses.reduce((sum, expense) => {
+    if (expense.bucketId !== bucketId) return sum;
+    return sum + Number(expense.amount);
+  }, 0);
+  const allocated = Math.round(targetBucket.allocatedAmount);
+  const remainingBefore = allocated - Math.round(spentWithoutTargetExpense + amountBefore);
+  const remainingAfter = allocated - Math.round(spentWithoutTargetExpense + amountAfter);
+
+  if (remainingAfter >= 0) return null;
+  return {
+    insufficientBucketBalance: true,
+    bucketName: targetBucket.name,
+    shortfall: Math.abs(remainingAfter),
+    remainingBefore,
+    remainingAfter,
+  };
+}
 
 export async function PATCH(req: NextRequest, context: RouteContext) {
   const auth = await requireUser();
@@ -78,6 +166,20 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
       where: { id },
       data: updateData,
     });
+    const bucketBalance = row.bucketId
+      ? await getBucketBalanceWarningAfterUpdate(
+          auth.user.id,
+          row.id,
+          row.bucketId,
+          row.occurredAt,
+          existing.bucketId === row.bucketId &&
+            existing.occurredAt.getFullYear() === row.occurredAt.getFullYear() &&
+            existing.occurredAt.getMonth() === row.occurredAt.getMonth()
+            ? Number(existing.amount)
+            : 0,
+          Number(row.amount),
+        )
+      : null;
     await refreshSnapshotsForMonths(prisma, auth.user.id, [
       {
         year: existing.occurredAt.getFullYear(),
@@ -92,6 +194,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
       label: row.label,
       occurredAt: row.occurredAt.toISOString(),
       bucketId: row.bucketId,
+      bucketBalance,
     });
   } catch (e) {
     console.error(e);

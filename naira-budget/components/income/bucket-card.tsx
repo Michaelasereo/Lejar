@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ChevronDown, Pencil, Trash2, Check, X } from "lucide-react";
+import { ChevronDown, Pencil, Trash2, Check, X, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   amountToPercentage,
@@ -64,6 +64,8 @@ function AllocationRow({
   onRefresh: () => void;
 }) {
   const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [draftLabel, setDraftLabel] = useState(allocation.label);
   const [draftPercentage, setDraftPercentage] = useState(allocation.percentage.toFixed(2));
   const [draftAmount, setDraftAmount] = useState(String(Math.round(allocation.amount)));
@@ -81,40 +83,52 @@ function AllocationRow({
   }
 
   async function save() {
+    if (saving) return;
     const pct = parseAmountInput(draftPercentage);
     if (!draftLabel.trim() || pct <= 0 || pct > 100) {
       toast.error("Enter a label and a valid percentage.");
       return;
     }
-    const res = await fetch(`/api/allocations/${allocation.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        label: draftLabel.trim(),
-        percentage: pct,
-        amount: parseAmountInput(draftAmount),
-      }),
-    });
-    if (!res.ok) {
-      const j = await res.json().catch(() => ({}));
-      toast.error(typeof j.error === "string" ? j.error : "Could not save");
-      return;
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/allocations/${allocation.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          label: draftLabel.trim(),
+          percentage: pct,
+          amount: parseAmountInput(draftAmount),
+        }),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        toast.error(typeof j.error === "string" ? j.error : "Could not save");
+        return;
+      }
+      toast.success("Updated");
+      setEditing(false);
+      onRefresh();
+    } finally {
+      setSaving(false);
     }
-    toast.success("Updated");
-    setEditing(false);
-    onRefresh();
   }
 
   async function remove() {
+    if (deleting) return;
     if (!confirm("Remove this allocation?")) return;
-    const res = await fetch(`/api/allocations/${allocation.id}`, { method: "DELETE" });
-    if (!res.ok) {
-      const j = await res.json().catch(() => ({}));
-      toast.error(typeof j.error === "string" ? j.error : "Could not delete");
-      return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/allocations/${allocation.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        toast.error(typeof j.error === "string" ? j.error : "Could not delete");
+        return;
+      }
+      toast.success("Removed");
+      onRefresh();
+    } finally {
+      setDeleting(false);
     }
-    toast.success("Removed");
-    onRefresh();
   }
 
   return (
@@ -129,10 +143,15 @@ function AllocationRow({
           <button
             type="button"
             onClick={() => void save()}
-            className="inline-flex min-h-9 min-w-9 items-center justify-center border border-accent bg-accent text-accent-foreground"
+            disabled={saving}
+            className="inline-flex min-h-9 min-w-9 items-center justify-center border border-accent bg-accent text-accent-foreground disabled:opacity-60"
             aria-label="Save"
           >
-            <Check className="h-4 w-4" />
+            {saving ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Check className="h-4 w-4" />
+            )}
           </button>
           <button
             type="button"
@@ -142,7 +161,8 @@ function AllocationRow({
               setDraftPercentage(allocation.percentage.toFixed(2));
               setDraftAmount(String(Math.round(allocation.amount)));
             }}
-            className="inline-flex min-h-9 min-w-9 items-center justify-center border border-white/15"
+            disabled={saving}
+            className="inline-flex min-h-9 min-w-9 items-center justify-center border border-white/15 disabled:opacity-60"
             aria-label="Cancel"
           >
             <X className="h-4 w-4" />
@@ -167,7 +187,8 @@ function AllocationRow({
           <button
             type="button"
             onClick={() => setEditing(true)}
-            className="inline-flex min-h-8 min-w-8 items-center justify-center border border-white/10 text-white/45 hover:text-white/75"
+            disabled={deleting}
+            className="inline-flex min-h-8 min-w-8 items-center justify-center border border-white/10 text-white/45 hover:text-white/75 disabled:opacity-50"
             aria-label="Edit allocation"
           >
             <Pencil className="h-3.5 w-3.5" />
@@ -175,10 +196,15 @@ function AllocationRow({
           <button
             type="button"
             onClick={() => void remove()}
-            className="inline-flex min-h-8 min-w-8 items-center justify-center border border-white/10 text-white/45 hover:text-red-400"
-            aria-label="Delete allocation"
+            disabled={deleting}
+            className="inline-flex min-h-8 min-w-8 items-center justify-center border border-white/10 text-white/45 hover:text-red-400 disabled:opacity-50"
+            aria-label={deleting ? "Deleting allocation" : "Delete allocation"}
           >
-            <Trash2 className="h-3.5 w-3.5" />
+            {deleting ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Trash2 className="h-3.5 w-3.5" />
+            )}
           </button>
         </>
       )}
@@ -229,6 +255,8 @@ export function BucketCard({
 }: BucketCardProps) {
   const [open, setOpen] = useState(false);
   const [editingBucket, setEditingBucket] = useState(false);
+  const [savingBucket, setSavingBucket] = useState(false);
+  const [deletingBucket, setDeletingBucket] = useState(false);
   const [draftName, setDraftName] = useState(name);
   const [draftAmount, setDraftAmount] = useState(String(Math.round(allocatedAmount)));
   const [draftPercentage, setDraftPercentage] = useState(percentage.toFixed(2));
@@ -250,40 +278,52 @@ export function BucketCard({
     [allocations],
   );
   async function saveBucket() {
+    if (savingBucket) return;
     const amt = parseAmountInput(draftAmount);
     const pct = parseAmountInput(draftPercentage);
     if (!draftName.trim() || amt < 0) {
       toast.error("Enter a name and a valid amount.");
       return;
     }
-    const result = await onRequestSaveBucket({
-      id,
-      name: draftName.trim(),
-      color,
-      allocatedAmount: amt,
-      percentage: pct,
-      allocationPercentage,
-    });
-    if (result === "error") {
-      return;
-    }
-    setEditingBucket(false);
-    if (result === "saved") {
-      toast.success("Bucket updated");
-      onRefresh();
+    setSavingBucket(true);
+    try {
+      const result = await onRequestSaveBucket({
+        id,
+        name: draftName.trim(),
+        color,
+        allocatedAmount: amt,
+        percentage: pct,
+        allocationPercentage,
+      });
+      if (result === "error") {
+        return;
+      }
+      setEditingBucket(false);
+      if (result === "saved") {
+        toast.success("Bucket updated");
+        onRefresh();
+      }
+    } finally {
+      setSavingBucket(false);
     }
   }
 
   async function deleteBucket() {
+    if (deletingBucket) return;
     if (!confirm("Delete this bucket and its allocations?")) return;
-    const res = await fetch(`/api/buckets/${id}`, { method: "DELETE" });
-    if (!res.ok) {
-      const j = await res.json().catch(() => ({}));
-      toast.error(typeof j.error === "string" ? j.error : "Could not delete");
-      return;
+    setDeletingBucket(true);
+    try {
+      const res = await fetch(`/api/buckets/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        toast.error(typeof j.error === "string" ? j.error : "Could not delete");
+        return;
+      }
+      toast.success("Bucket removed");
+      onRefresh();
+    } finally {
+      setDeletingBucket(false);
     }
-    toast.success("Bucket removed");
-    onRefresh();
   }
 
   return (
@@ -336,9 +376,17 @@ export function BucketCard({
                 <button
                   type="button"
                   onClick={() => void saveBucket()}
-                  className="min-h-10 border border-accent bg-accent px-3 text-sm text-accent-foreground"
+                  disabled={savingBucket}
+                  className="inline-flex min-h-10 items-center gap-1.5 border border-accent bg-accent px-3 text-sm text-accent-foreground disabled:opacity-60"
                 >
-                  Save
+                  {savingBucket ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    "Save"
+                  )}
                 </button>
                 <button
                   type="button"
@@ -348,7 +396,8 @@ export function BucketCard({
                     setDraftAmount(String(Math.round(allocatedAmount)));
                     setDraftPercentage(percentage.toFixed(2));
                   }}
-                  className="min-h-10 border border-white/15 px-3 text-sm"
+                  disabled={savingBucket}
+                  className="min-h-10 border border-white/15 px-3 text-sm disabled:opacity-60"
                 >
                   Cancel
                 </button>
@@ -372,10 +421,20 @@ export function BucketCard({
               <button
                 type="button"
                 onClick={() => void deleteBucket()}
-                className="inline-flex min-h-9 items-center gap-1.5 border border-white/15 px-3 text-xs uppercase tracking-wide text-white/45 hover:border-red-400/40 hover:text-red-400"
+                disabled={deletingBucket}
+                className="inline-flex min-h-9 items-center gap-1.5 border border-white/15 px-3 text-xs uppercase tracking-wide text-white/45 hover:border-red-400/40 hover:text-red-400 disabled:opacity-50"
               >
-                <Trash2 className="h-3.5 w-3.5" />
-                Delete
+                {deletingBucket ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="h-3.5 w-3.5" />
+                    Delete
+                  </>
+                )}
               </button>
             </div>
           )}

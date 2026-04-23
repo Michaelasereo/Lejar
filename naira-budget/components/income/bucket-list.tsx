@@ -70,6 +70,7 @@ export function BucketList({
   const [makeRoomOpen, setMakeRoomOpen] = useState(false);
   const [makeRoomName, setMakeRoomName] = useState("");
   const [makeRoomSaving, setMakeRoomSaving] = useState(false);
+  const [addingBucket, setAddingBucket] = useState(false);
   const [makeRoomDrafts, setMakeRoomDrafts] = useState<Record<string, number>>(
     Object.fromEntries(buckets.map((bucket) => [bucket.id, Math.round(bucket.percentage)])),
   );
@@ -170,6 +171,7 @@ export function BucketList({
 
   async function addBucket(e: React.FormEvent) {
     e.preventDefault();
+    if (addingBucket) return;
     const name = addDraft.name.trim();
     const amt = parseAmountInput(addDraft.amount);
     const pct = parseAmountInput(addDraft.percentage);
@@ -185,34 +187,42 @@ export function BucketList({
       openMakeRoomPanel();
       return;
     }
-    const res = await fetch("/api/buckets", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name,
-        color: addDraft.color,
-        allocatedAmount: amt || undefined,
-        percentage: pct || undefined,
-      }),
-    });
-    if (!res.ok) {
-      const j = await res.json().catch(() => ({}));
-      const errorMessage = typeof j.error === "string" ? j.error : "Could not add bucket";
-      if (errorMessage.toLowerCase().includes("percentage") || errorMessage.toLowerCase().includes("allocated")) {
-        openMakeRoomPanel();
+    setAddingBucket(true);
+    try {
+      const res = await fetch("/api/buckets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          color: addDraft.color,
+          allocatedAmount: amt || undefined,
+          percentage: pct || undefined,
+        }),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        const errorMessage = typeof j.error === "string" ? j.error : "Could not add bucket";
+        if (
+          errorMessage.toLowerCase().includes("percentage") ||
+          errorMessage.toLowerCase().includes("allocated")
+        ) {
+          openMakeRoomPanel();
+          return;
+        }
+        toast.error(errorMessage);
         return;
       }
-      toast.error(errorMessage);
-      return;
+      toast.success("Bucket added");
+      onAddDraftChange({
+        name: "",
+        color: BUCKET_COLORS[0] ?? "#7C63FD",
+        amount: "",
+        percentage: "",
+      });
+      onRefresh();
+    } finally {
+      setAddingBucket(false);
     }
-    toast.success("Bucket added");
-    onAddDraftChange({
-      name: "",
-      color: BUCKET_COLORS[0] ?? "#7C63FD",
-      amount: "",
-      percentage: "",
-    });
-    onRefresh();
   }
 
   async function handleBucketSaveRequest(
@@ -367,12 +377,15 @@ export function BucketList({
               placeholder="Bucket %"
               className="min-h-11 w-full border border-white/15 bg-background px-3 py-2.5 text-sm outline-none focus:border-accent sm:w-28"
             />
-            <button
+            <LoadingButton
               type="submit"
-              className="min-h-11 border border-accent bg-accent px-5 py-2.5 text-sm font-medium text-accent-foreground hover:bg-accent/90"
+              state={addingBucket ? "loading" : "idle"}
+              loadingText="Adding..."
+              size="md"
+              className="min-h-11 px-5"
             >
               Add bucket
-            </button>
+            </LoadingButton>
           </div>
         </div>
         <AnimatePresence>

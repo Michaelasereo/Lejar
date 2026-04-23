@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Pencil, Trash2, Check, X } from "lucide-react";
+import { Pencil, Trash2, Check, X, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { formatNaira } from "@/lib/utils/currency";
 import { parseAmountInput } from "@/lib/income/money";
@@ -12,6 +12,7 @@ interface IncomeSourceRowProps {
   label: string;
   amountMonthly: number;
   onSaved: () => void;
+  onIncomeChanged?: () => void;
 }
 
 export function IncomeSourceRow({
@@ -19,8 +20,11 @@ export function IncomeSourceRow({
   label,
   amountMonthly,
   onSaved,
+  onIncomeChanged,
 }: IncomeSourceRowProps) {
   const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [draftLabel, setDraftLabel] = useState(label);
   const [draftAmount, setDraftAmount] = useState(String(Math.round(amountMonthly)));
   const [showEffectivePrompt, setShowEffectivePrompt] = useState(false);
@@ -49,6 +53,7 @@ export function IncomeSourceRow({
   }
 
   async function save() {
+    if (saving) return;
     const amt = parseAmountInput(draftAmount);
     if (!draftLabel.trim() || amt <= 0) {
       toast.error("Enter a label and a positive amount.");
@@ -72,54 +77,67 @@ export function IncomeSourceRow({
             : customMonth;
       isBackdate = effectiveMode === "earlier";
     }
-    const res = await fetch(`/api/income/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...(labelChanged ? { label: draftLabel.trim() } : {}),
-        ...(amountChanged ? { amountMonthly: amt, effectiveMonth, isBackdate } : {}),
-      }),
-    });
-    if (!res.ok) {
-      const j = await res.json().catch(() => ({}));
-      toast.error(typeof j.error === "string" ? j.error : "Could not save");
-      return;
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/income/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...(labelChanged ? { label: draftLabel.trim() } : {}),
+          ...(amountChanged ? { amountMonthly: amt, effectiveMonth, isBackdate } : {}),
+        }),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        toast.error(typeof j.error === "string" ? j.error : "Could not save");
+        return;
+      }
+      const payload = (await res.json().catch(() => ({}))) as {
+        allocationsRecalculated?: boolean;
+        affectedMonths?: string[];
+      };
+      toast.success("Income updated");
+      if (payload.affectedMonths && payload.affectedMonths.length > 0) {
+        setBackdateNotice(
+          `Income updated from ${effectiveMonth}. ${payload.affectedMonths.length} past month(s) may show different totals in analytics. Your data has been flagged for review.`,
+        );
+      } else {
+        setBackdateNotice(null);
+      }
+      if (payload.allocationsRecalculated) {
+        toast.success("Income updated — bucket allocations recalculated automatically");
+      }
+      setEditing(false);
+      if (amountChanged) onIncomeChanged?.();
+      onSaved();
+    } finally {
+      setSaving(false);
     }
-    const payload = (await res.json().catch(() => ({}))) as {
-      allocationsRecalculated?: boolean;
-      affectedMonths?: string[];
-    };
-    toast.success("Income updated");
-    if (payload.affectedMonths && payload.affectedMonths.length > 0) {
-      setBackdateNotice(
-        `Income updated from ${effectiveMonth}. ${payload.affectedMonths.length} past month(s) may show different totals in analytics. Your data has been flagged for review.`,
-      );
-    } else {
-      setBackdateNotice(null);
-    }
-    if (payload.allocationsRecalculated) {
-      toast.success("Income updated — bucket allocations recalculated automatically");
-    }
-    setEditing(false);
-    onSaved();
   }
 
   async function remove() {
+    if (deleting) return;
     if (!confirm("Remove this income source?")) return;
-    const res = await fetch(`/api/income/${id}`, { method: "DELETE" });
-    if (!res.ok) {
-      const j = await res.json().catch(() => ({}));
-      toast.error(typeof j.error === "string" ? j.error : "Could not delete");
-      return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/income/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        toast.error(typeof j.error === "string" ? j.error : "Could not delete");
+        return;
+      }
+      const payload = (await res.json().catch(() => ({}))) as {
+        allocationsRecalculated?: boolean;
+      };
+      toast.success("Removed");
+      if (payload.allocationsRecalculated) {
+        toast.success("Income updated — bucket allocations recalculated automatically");
+      }
+      onIncomeChanged?.();
+      onSaved();
+    } finally {
+      setDeleting(false);
     }
-    const payload = (await res.json().catch(() => ({}))) as {
-      allocationsRecalculated?: boolean;
-    };
-    toast.success("Removed");
-    if (payload.allocationsRecalculated) {
-      toast.success("Income updated — bucket allocations recalculated automatically");
-    }
-    onSaved();
   }
 
   return (
@@ -143,15 +161,21 @@ export function IncomeSourceRow({
             <button
               type="button"
               onClick={() => void save()}
-              className="inline-flex min-h-10 min-w-10 items-center justify-center border border-accent bg-accent text-accent-foreground hover:bg-accent/90"
+              disabled={saving}
+              className="inline-flex min-h-10 min-w-10 items-center justify-center border border-accent bg-accent text-accent-foreground hover:bg-accent/90 disabled:opacity-60"
               aria-label="Save"
             >
-              <Check className="h-4 w-4" />
+              {saving ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Check className="h-4 w-4" />
+              )}
             </button>
             <button
               type="button"
               onClick={cancel}
-              className="inline-flex min-h-10 min-w-10 items-center justify-center border border-white/15 text-white/70 hover:border-white/30"
+              disabled={saving}
+              className="inline-flex min-h-10 min-w-10 items-center justify-center border border-white/15 text-white/70 hover:border-white/30 disabled:opacity-60"
               aria-label="Cancel"
             >
               <X className="h-4 w-4" />
@@ -230,8 +254,9 @@ export function IncomeSourceRow({
             <button
               type="button"
               onClick={startEdit}
+              disabled={deleting}
               className={cn(
-                "inline-flex min-h-9 min-w-9 items-center justify-center border border-white/10 text-white/50 hover:border-white/25 hover:text-white/80",
+                "inline-flex min-h-9 min-w-9 items-center justify-center border border-white/10 text-white/50 hover:border-white/25 hover:text-white/80 disabled:opacity-50",
               )}
               aria-label="Edit"
             >
@@ -240,10 +265,15 @@ export function IncomeSourceRow({
             <button
               type="button"
               onClick={() => void remove()}
-              className="inline-flex min-h-9 min-w-9 items-center justify-center border border-white/10 text-white/50 hover:border-red-400/50 hover:text-red-400"
-              aria-label="Delete"
+              disabled={deleting}
+              className="inline-flex min-h-9 min-w-9 items-center justify-center border border-white/10 text-white/50 hover:border-red-400/50 hover:text-red-400 disabled:opacity-50"
+              aria-label={deleting ? "Deleting" : "Delete"}
             >
-              <Trash2 className="h-4 w-4" />
+              {deleting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Trash2 className="h-4 w-4" />
+              )}
             </button>
           </div>
         </>

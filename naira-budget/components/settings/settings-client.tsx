@@ -4,9 +4,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { LogOut } from "lucide-react";
+import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import type { SettingsPageData } from "@/lib/settings/get-settings-page-data";
 import { amountToPercentage, formatNaira, percentageToAmount } from "@/lib/utils/currency";
+import { ReconcileEditModal } from "@/components/income/reconcile-edit-modal";
 
 interface SettingsClientProps {
   data: SettingsPageData;
@@ -35,6 +37,16 @@ export function SettingsClient({ data }: SettingsClientProps) {
     Object.fromEntries(data.buckets.map((bucket) => [bucket.id, bucket.name])),
   );
   const [savingBuckets, setSavingBuckets] = useState(false);
+  const [reconcileOpen, setReconcileOpen] = useState(false);
+  const [reconcileBuckets, setReconcileBuckets] = useState<
+    Array<{
+      id: string;
+      name: string;
+      color: string;
+      percentage: number;
+      allocationPercentage: number;
+    }>
+  >([]);
 
   async function signOut() {
     setSigningOut(true);
@@ -70,6 +82,16 @@ export function SettingsClient({ data }: SettingsClientProps) {
   const totalAllocatedAmount = percentageToAmount(bucketTotal, totalIncome);
   const remainingAmount = totalIncome - totalAllocatedAmount;
 
+  function buildReconcileBucketsFromDrafts() {
+    return data.buckets.map((bucket) => ({
+      id: bucket.id,
+      name: (bucketNameDrafts[bucket.id] ?? bucket.name).trim() || bucket.name,
+      color: bucket.color,
+      percentage: Number((Number(bucketDrafts[bucket.id] ?? bucket.percentage) || 0).toFixed(2)),
+      allocationPercentage: bucket.allocationPercentage,
+    }));
+  }
+
   function updateFromPercentage(bucketId: string, rawValue: string) {
     const pct = Number(rawValue) || 0;
     setBucketDrafts((prev) => ({ ...prev, [bucketId]: rawValue }));
@@ -89,7 +111,12 @@ export function SettingsClient({ data }: SettingsClientProps) {
   }
 
   async function saveBuckets() {
-    if (bucketOver) return;
+    if (Math.abs(remainingPercentage) > 0.01) {
+      setReconcileBuckets(buildReconcileBucketsFromDrafts());
+      setReconcileOpen(true);
+      return;
+    }
+
     setSavingBuckets(true);
     try {
       await Promise.all(
@@ -107,12 +134,61 @@ export function SettingsClient({ data }: SettingsClientProps) {
               percentage,
               allocatedAmount,
             }),
+          }).then(async (res) => {
+            if (!res.ok) {
+              const payload = await res.json().catch(() => ({}));
+              throw new Error(
+                typeof payload.error === "string"
+                  ? payload.error
+                  : "Could not save bucket settings",
+              );
+            }
           });
         }),
       );
+      toast.success("Buckets saved");
       router.refresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not save buckets");
     } finally {
       setSavingBuckets(false);
+    }
+  }
+
+  async function saveBucketNamesOnly() {
+    await Promise.all(
+      data.buckets.map((bucket) => {
+        const name = (bucketNameDrafts[bucket.id] ?? bucket.name).trim() || bucket.name;
+        if (name === bucket.name) return Promise.resolve();
+        return fetch(`/api/buckets/${bucket.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name }),
+        }).then(async (res) => {
+          if (!res.ok) {
+            const payload = await res.json().catch(() => ({}));
+            throw new Error(
+              typeof payload.error === "string"
+                ? payload.error
+                : "Could not save bucket names",
+            );
+          }
+        });
+      }),
+    );
+  }
+
+  async function handleReconcileApplied() {
+    try {
+      await saveBucketNamesOnly();
+      toast.success("Buckets saved");
+      setReconcileOpen(false);
+      setReconcileBuckets([]);
+      router.refresh();
+    } catch (error) {
+      throw new Error(
+        error instanceof Error ? error.message : "Could not finish saving bucket names",
+      );
     }
   }
 
@@ -267,7 +343,7 @@ export function SettingsClient({ data }: SettingsClientProps) {
           )}
           <button
             type="button"
-            disabled={savingBuckets || bucketOver}
+            disabled={savingBuckets}
             onClick={() => void saveBuckets()}
             className="min-h-11 border border-accent bg-accent px-4 py-2 text-sm text-accent-foreground disabled:opacity-40"
           >
@@ -275,6 +351,19 @@ export function SettingsClient({ data }: SettingsClientProps) {
           </button>
         </div>
       </section>
+      <ReconcileEditModal
+        open={reconcileOpen}
+        totalIncome={totalIncome}
+        buckets={reconcileBuckets}
+        decimalStep={0.01}
+        decimalPrecision={2}
+        lockEditedBucket={false}
+        onClose={() => {
+          setReconcileOpen(false);
+          setReconcileBuckets([]);
+        }}
+        onApplied={handleReconcileApplied}
+      />
 
       <section className="border border-white/10 bg-card">
         <div className="border-b border-white/10 px-4 py-3">
