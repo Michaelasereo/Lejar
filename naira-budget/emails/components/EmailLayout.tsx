@@ -33,13 +33,13 @@ export function EmailLayout({ previewText, children }: EmailLayoutProps) {
                     <Img
                       src={`${APP_URL}/Orjar-logo.svg`}
                       width="160"
-                      height="62"
                       alt="Orjar"
                       style={{
-                        display: "inline-block",
-                        verticalAlign: "middle",
+                        display: "block",
+                        margin: "0 auto",
+                        width: "160px",
                         height: "auto",
-                        maxWidth: "100%",
+                        maxWidth: "160px",
                       }}
                     />
                   </td>

@@ -1,5 +1,7 @@
 import { endOfMonth, getISOWeek, getYear, startOfMonth, startOfWeek } from "date-fns";
 import type { MilestoneType, StreakType, UserStreak } from "@prisma/client";
+import { findAuthUserById } from "@/lib/auth/supabase-users";
+import { safelySendEmail, sendStreakAtRiskAlert } from "@/lib/email";
 import { prisma } from "@/lib/prisma";
 import { getIncomeForMonth } from "@/lib/utils/income";
 
@@ -370,6 +372,25 @@ export async function ensureWeeklyLoggingGraceWarning(userId: string): Promise<v
       message: `Your ${streak.currentCount}-week logging streak ends tonight - log an expense to keep it.`,
       expiresAt,
     },
+  });
+
+  await safelySendEmail(async () => {
+    const authUser = await findAuthUserById(userId);
+    if (!authUser) return;
+    const email = authUser.email?.trim();
+    if (!email) return;
+    const name =
+      (authUser.user_metadata?.full_name as string | undefined)?.trim() ||
+      (authUser.user_metadata?.name as string | undefined)?.trim() ||
+      email.split("@")[0] ||
+      "there";
+    await sendStreakAtRiskAlert({
+      toEmail: email,
+      name,
+      streakCount: streak.currentCount,
+      streakType: "weekly logging",
+      daysLeft: 0,
+    });
   });
 }
 

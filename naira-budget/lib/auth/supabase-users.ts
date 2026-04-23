@@ -24,3 +24,12 @@ export async function findAuthUserByEmail(email: string): Promise<User | null> {
     page += 1;
   }
 }
+
+export async function findAuthUserById(userId: string): Promise<User | null> {
+  const admin = createAdminClient();
+  const { data, error } = await admin.auth.admin.getUserById(userId);
+  if (error) {
+    throw new Error(error.message);
+  }
+  return data.user ?? null;
+}

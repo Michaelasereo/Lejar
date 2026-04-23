@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { requireUser } from "@/lib/auth/require-user";
+import { safelySendEmail, sendGroupJarInvite } from "@/lib/email";
 import { prisma } from "@/lib/prisma";
 import { createGroupJarSchema } from "@/lib/validations/jar";
 
@@ -89,6 +90,39 @@ export async function POST(req: NextRequest) {
 
     return jar;
   });
+
+  if (body.inviteEmails.length > 0) {
+    const [members, memberCount] = await Promise.all([
+      prisma.groupJarMember.findMany({
+        where: { jarId: created.id, email: { in: body.inviteEmails } },
+        select: { email: true, inviteToken: true },
+      }),
+      prisma.groupJarMember.count({ where: { jarId: created.id, status: "ACTIVE" } }),
+    ]);
+
+    const inviterName =
+      (auth.user.user_metadata?.full_name as string | undefined)?.trim() ||
+      auth.user.email?.split("@")[0] ||
+      "Someone";
+
+    await Promise.allSettled(
+      members.map((member) =>
+        safelySendEmail(() =>
+          sendGroupJarInvite({
+            toEmail: member.email,
+            inviterName,
+            jarName: created.name,
+            jarEmoji: created.emoji,
+            targetAmount: Number(created.targetAmount),
+            dueDate: created.dueDate ?? undefined,
+            memberCount,
+            notes: created.notes ?? undefined,
+            inviteToken: member.inviteToken,
+          }),
+        ),
+      ),
+    );
+  }
 
   return NextResponse.json({ id: created.id }, { status: 201 });
 }
