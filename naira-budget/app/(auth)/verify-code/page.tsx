@@ -9,6 +9,7 @@ import { LoadingButton } from "@/components/ui/LoadingButton";
 
 const CODE_LENGTH = 6;
 const RESEND_SECONDS = 60;
+const PENDING_SIGNUP_KEY = "pending-signup";
 
 export default function VerifyCodePage() {
   return (
@@ -65,6 +66,32 @@ function VerifyCodeClient() {
     }
 
     if (type === "signup") {
+      if (typeof window !== "undefined") {
+        const rawPending = window.sessionStorage.getItem(PENDING_SIGNUP_KEY);
+        if (rawPending) {
+          try {
+            const pending = JSON.parse(rawPending) as {
+              email?: string;
+              password?: string;
+            };
+            if (
+              pending.email?.toLowerCase() === email.toLowerCase() &&
+              pending.password
+            ) {
+              const { error: passwordError } = await supabase.auth.updateUser({
+                password: pending.password,
+              });
+              if (passwordError) {
+                setError("Code is valid, but we could not finish setup. Try again.");
+                return;
+              }
+              window.sessionStorage.removeItem(PENDING_SIGNUP_KEY);
+            }
+          } catch {
+            window.sessionStorage.removeItem(PENDING_SIGNUP_KEY);
+          }
+        }
+      }
       await fetch("/api/auth/welcome", { method: "POST" }).catch(() => null);
     }
     router.replace("/app/dashboard");
@@ -142,9 +169,11 @@ function VerifyCodeClient() {
     const resendError =
       type === "signup"
         ? (
-            await supabase.auth.resend({
-              type: "signup",
+            await supabase.auth.signInWithOtp({
               email,
+              options: {
+                shouldCreateUser: true,
+              },
             })
           ).error
         : (

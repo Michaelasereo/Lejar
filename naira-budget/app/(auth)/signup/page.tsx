@@ -11,6 +11,8 @@ import { signupSchema, type SignupFormValues } from "@/lib/validations/auth";
 import { cn } from "@/lib/utils/cn";
 import { LoadingButton } from "@/components/ui/LoadingButton";
 
+const PENDING_SIGNUP_KEY = "pending-signup";
+
 export default function SignupPage() {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
@@ -32,10 +34,10 @@ export default function SignupPage() {
   async function onSubmit(data: SignupFormValues) {
     setSubmitError(null);
     const supabase = createClient();
-    const { error } = await supabase.auth.signUp({
+    const { error } = await supabase.auth.signInWithOtp({
       email: data.email,
-      password: data.password,
       options: {
+        shouldCreateUser: true,
         data: { full_name: data.fullName },
       },
     });
@@ -43,6 +45,15 @@ export default function SignupPage() {
     if (error) {
       setSubmitError(error.message);
       return;
+    }
+
+    if (typeof window !== "undefined") {
+      const payload = {
+        email: data.email,
+        password: data.password,
+        fullName: data.fullName,
+      };
+      window.sessionStorage.setItem(PENDING_SIGNUP_KEY, JSON.stringify(payload));
     }
 
     router.push(`/verify-code?email=${encodeURIComponent(data.email)}&type=signup`);
