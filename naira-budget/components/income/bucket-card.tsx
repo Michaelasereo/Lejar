@@ -11,6 +11,7 @@ import {
 import { parseAmountInput } from "@/lib/income/money";
 import { AllocationForm } from "@/components/income/allocation-form";
 import { cn } from "@/lib/utils/cn";
+import { ConfirmActionModal } from "@/components/ui/ConfirmActionModal";
 
 interface Allocation {
   id: string;
@@ -66,6 +67,7 @@ function AllocationRow({
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [draftLabel, setDraftLabel] = useState(allocation.label);
   const [draftPercentage, setDraftPercentage] = useState(allocation.percentage.toFixed(2));
   const [draftAmount, setDraftAmount] = useState(String(Math.round(allocation.amount)));
@@ -115,7 +117,6 @@ function AllocationRow({
 
   async function remove() {
     if (deleting) return;
-    if (!confirm("Remove this allocation?")) return;
     setDeleting(true);
     try {
       const res = await fetch(`/api/allocations/${allocation.id}`, { method: "DELETE" });
@@ -125,6 +126,7 @@ function AllocationRow({
         return;
       }
       toast.success("Removed");
+      setDeleteModalOpen(false);
       onRefresh();
     } finally {
       setDeleting(false);
@@ -195,7 +197,7 @@ function AllocationRow({
           </button>
           <button
             type="button"
-            onClick={() => void remove()}
+            onClick={() => setDeleteModalOpen(true)}
             disabled={deleting}
             className="inline-flex min-h-8 min-w-8 items-center justify-center border border-white/10 text-white/45 hover:text-red-400 disabled:opacity-50"
             aria-label={deleting ? "Deleting allocation" : "Delete allocation"}
@@ -236,6 +238,15 @@ function AllocationRow({
           </span>
         </div>
       ) : null}
+      <ConfirmActionModal
+        open={deleteModalOpen}
+        title="Remove this allocation?"
+        description="This allocation will be permanently removed from the bucket."
+        confirmLabel="Remove allocation"
+        isLoading={deleting}
+        onCancel={() => setDeleteModalOpen(false)}
+        onConfirm={() => void remove()}
+      />
     </div>
   );
 }
@@ -257,6 +268,7 @@ export function BucketCard({
   const [editingBucket, setEditingBucket] = useState(false);
   const [savingBucket, setSavingBucket] = useState(false);
   const [deletingBucket, setDeletingBucket] = useState(false);
+  const [deleteBucketModalOpen, setDeleteBucketModalOpen] = useState(false);
   const [draftName, setDraftName] = useState(name);
   const [draftAmount, setDraftAmount] = useState(String(Math.round(allocatedAmount)));
   const [draftPercentage, setDraftPercentage] = useState(percentage.toFixed(2));
@@ -310,7 +322,6 @@ export function BucketCard({
 
   async function deleteBucket() {
     if (deletingBucket) return;
-    if (!confirm("Delete this bucket and its allocations?")) return;
     setDeletingBucket(true);
     try {
       const res = await fetch(`/api/buckets/${id}`, { method: "DELETE" });
@@ -320,6 +331,7 @@ export function BucketCard({
         return;
       }
       toast.success("Bucket removed");
+      setDeleteBucketModalOpen(false);
       onRefresh();
     } finally {
       setDeletingBucket(false);
@@ -420,7 +432,7 @@ export function BucketCard({
               </button>
               <button
                 type="button"
-                onClick={() => void deleteBucket()}
+                onClick={() => setDeleteBucketModalOpen(true)}
                 disabled={deletingBucket}
                 className="inline-flex min-h-9 items-center gap-1.5 border border-white/15 px-3 text-xs uppercase tracking-wide text-white/45 hover:border-red-400/40 hover:text-red-400 disabled:opacity-50"
               >
@@ -474,6 +486,15 @@ export function BucketCard({
           <AllocationForm bucketId={id} totalIncome={totalIncome} onCreated={onRefresh} />
         </div>
       )}
+      <ConfirmActionModal
+        open={deleteBucketModalOpen}
+        title="Delete this bucket?"
+        description="This deletes the bucket and all allocations inside it."
+        confirmLabel="Delete bucket"
+        isLoading={deletingBucket}
+        onCancel={() => setDeleteBucketModalOpen(false)}
+        onConfirm={() => void deleteBucket()}
+      />
     </div>
   );
 }

@@ -13,6 +13,7 @@ import { dateToInputValue } from "@/lib/investments/dates";
 import type { ExpenseRecord } from "@/lib/expenses/get-expenses-page-data";
 import { parseAmountInput } from "@/lib/income/money";
 import { formatNaira } from "@/lib/utils/currency";
+import { ConfirmActionModal } from "@/components/ui/ConfirmActionModal";
 
 interface ExpenseRowProps {
   row: ExpenseRecord;
@@ -34,6 +35,7 @@ export function ExpenseRow({ row, buckets, onSaved }: ExpenseRowProps) {
   const [draftAmount, setDraftAmount] = useState(String(Math.round(row.amount)));
   const [draftBucketId, setDraftBucketId] = useState(row.bucketId ?? buckets[0]?.id ?? "");
   const [draftOccurredAt, setDraftOccurredAt] = useState(dateToInputValue(row.occurredAt));
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [insufficientModal, setInsufficientModal] = useState<{
     bucketName: string;
     shortfall: number;
@@ -99,7 +101,6 @@ export function ExpenseRow({ row, buckets, onSaved }: ExpenseRowProps) {
   }
 
   async function remove() {
-    if (!confirm("Delete this expense?")) return;
     const res = await fetch(`/api/expenses/${row.id}`, { method: "DELETE" });
     if (!res.ok) {
       const j = await res.json().catch(() => ({}));
@@ -107,6 +108,7 @@ export function ExpenseRow({ row, buckets, onSaved }: ExpenseRowProps) {
       return;
     }
     toast.success("Removed");
+    setDeleteModalOpen(false);
     onSaved();
   }
 
@@ -228,7 +230,7 @@ export function ExpenseRow({ row, buckets, onSaved }: ExpenseRowProps) {
             </button>
             <button
               type="button"
-              onClick={() => void remove()}
+              onClick={() => setDeleteModalOpen(true)}
               className="inline-flex min-h-9 min-w-9 items-center justify-center border border-white/10 text-white/50 hover:text-red-400"
               aria-label="Delete"
             >
@@ -281,6 +283,14 @@ export function ExpenseRow({ row, buckets, onSaved }: ExpenseRowProps) {
           </div>
         </div>
       ) : null}
+      <ConfirmActionModal
+        open={deleteModalOpen}
+        title="Delete this expense?"
+        description="This action removes the expense permanently."
+        confirmLabel="Delete expense"
+        onCancel={() => setDeleteModalOpen(false)}
+        onConfirm={() => void remove()}
+      />
     </div>
   );
 }

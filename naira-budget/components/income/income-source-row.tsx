@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { formatNaira } from "@/lib/utils/currency";
 import { parseAmountInput } from "@/lib/income/money";
 import { cn } from "@/lib/utils/cn";
+import { ConfirmActionModal } from "@/components/ui/ConfirmActionModal";
 
 interface IncomeSourceRowProps {
   id: string;
@@ -25,6 +26,7 @@ export function IncomeSourceRow({
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [draftLabel, setDraftLabel] = useState(label);
   const [draftAmount, setDraftAmount] = useState(String(Math.round(amountMonthly)));
   const [showEffectivePrompt, setShowEffectivePrompt] = useState(false);
@@ -117,7 +119,6 @@ export function IncomeSourceRow({
 
   async function remove() {
     if (deleting) return;
-    if (!confirm("Remove this income source?")) return;
     setDeleting(true);
     try {
       const res = await fetch(`/api/income/${id}`, { method: "DELETE" });
@@ -130,6 +131,7 @@ export function IncomeSourceRow({
         allocationsRecalculated?: boolean;
       };
       toast.success("Removed");
+      setDeleteModalOpen(false);
       if (payload.allocationsRecalculated) {
         toast.success("Income updated — bucket allocations recalculated automatically");
       }
@@ -264,7 +266,7 @@ export function IncomeSourceRow({
             </button>
             <button
               type="button"
-              onClick={() => void remove()}
+              onClick={() => setDeleteModalOpen(true)}
               disabled={deleting}
               className="inline-flex min-h-9 min-w-9 items-center justify-center border border-white/10 text-white/50 hover:border-red-400/50 hover:text-red-400 disabled:opacity-50"
               aria-label={deleting ? "Deleting" : "Delete"}
@@ -278,6 +280,15 @@ export function IncomeSourceRow({
           </div>
         </>
       )}
+      <ConfirmActionModal
+        open={deleteModalOpen}
+        title="Remove this income source?"
+        description="This income source will be deleted and monthly totals will update."
+        confirmLabel="Remove source"
+        isLoading={deleting}
+        onCancel={() => setDeleteModalOpen(false)}
+        onConfirm={() => void remove()}
+      />
     </div>
   );
 }

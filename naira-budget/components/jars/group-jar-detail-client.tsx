@@ -9,6 +9,7 @@ import { InviteMemberForm } from "@/components/jars/InviteMemberForm";
 import { formatNaira } from "@/lib/utils/currency";
 import { ContextMenu } from "@/components/ui/ContextMenu";
 import { toast } from "sonner";
+import { ConfirmActionModal } from "@/components/ui/ConfirmActionModal";
 
 interface Props {
   userId: string;
@@ -36,6 +37,7 @@ export function GroupJarDetailClient({
   const [draftName, setDraftName] = useState(name);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [menu, setMenu] = useState({ open: false, x: 0, y: 0 });
+  const [deleteJarModalOpen, setDeleteJarModalOpen] = useState(false);
   const pressTimer = useRef<number | null>(null);
   const EMOJIS = ["🏠", "🚗", "💻", "📱", "✈️", "📚", "💰", "💍", "🏥", "🎓", "🏦", "🛍️", "🎉", "🔒", "💼", "🌍"];
   const totalSaved = contributions.reduce((sum, c) => sum + Number(c.amount.toString()), 0);
@@ -59,13 +61,13 @@ export function GroupJarDetailClient({
 
   async function deleteGroupJar() {
     if (!isAdmin) return;
-    if (!confirm("Delete this group jar for all members?")) return;
     try {
       const res = await fetch(`/api/group-jars/${jarId}`, { method: "DELETE" });
       if (!res.ok) {
         throw new Error("Could not delete");
       }
       toast.success("Group jar deleted");
+      setDeleteJarModalOpen(false);
       router.push("/app/jars");
       router.refresh();
     } catch {
@@ -186,8 +188,21 @@ export function GroupJarDetailClient({
             label: "Edit jar details",
             onSelect: () => toast.message("Use admin controls to update group jar settings."),
           },
-          { id: "delete", label: "Delete jar", danger: true, onSelect: () => void deleteGroupJar() },
+          {
+            id: "delete",
+            label: "Delete jar",
+            danger: true,
+            onSelect: () => setDeleteJarModalOpen(true),
+          },
         ]}
+      />
+      <ConfirmActionModal
+        open={deleteJarModalOpen}
+        title="Delete this group jar?"
+        description="This removes the jar for all members and cannot be undone."
+        confirmLabel="Delete group jar"
+        onCancel={() => setDeleteJarModalOpen(false)}
+        onConfirm={() => void deleteGroupJar()}
       />
     </div>
   );

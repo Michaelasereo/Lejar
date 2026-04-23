@@ -11,6 +11,7 @@ import type { z } from "zod";
 import { formatNaira } from "@/lib/utils/currency";
 import { cn } from "@/lib/utils/cn";
 import { ContextMenu } from "@/components/ui/ContextMenu";
+import { ConfirmActionModal } from "@/components/ui/ConfirmActionModal";
 
 type Contrib = {
   id: string;
@@ -58,6 +59,7 @@ export function JarDetailClient({ jar, contributions: initialContribs }: JarDeta
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
   const [menu, setMenu] = useState({ open: false, x: 0, y: 0 });
+  const [deleteJarModalOpen, setDeleteJarModalOpen] = useState(false);
   const pressTimer = useRef<number | null>(null);
   const celebrateRef = useRef(false);
   const EMOJIS = ["🏠", "🚗", "💻", "📱", "✈️", "📚", "💰", "💍", "🏥", "🎓", "🏦", "🛍️", "🎉", "🔒", "💼", "🌍"];
@@ -180,11 +182,11 @@ export function JarDetailClient({ jar, contributions: initialContribs }: JarDeta
   }
 
   async function deleteJar() {
-    if (!confirm("Delete this jar permanently?")) return;
     try {
       const res = await fetch(`/api/savings-jars/${jar.id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Could not delete");
       toast.success("Jar deleted");
+      setDeleteJarModalOpen(false);
       router.push("/app/jars");
       router.refresh();
     } catch {
@@ -433,8 +435,21 @@ export function JarDetailClient({ jar, contributions: initialContribs }: JarDeta
             onSelect: () =>
               toast.message("Use the existing jar controls for target, notes, and pin settings."),
           },
-          { id: "delete", label: "Delete jar", danger: true, onSelect: () => void deleteJar() },
+          {
+            id: "delete",
+            label: "Delete jar",
+            danger: true,
+            onSelect: () => setDeleteJarModalOpen(true),
+          },
         ]}
+      />
+      <ConfirmActionModal
+        open={deleteJarModalOpen}
+        title="Delete this jar permanently?"
+        description="All saved contributions in this jar will be removed."
+        confirmLabel="Delete jar"
+        onCancel={() => setDeleteJarModalOpen(false)}
+        onConfirm={() => void deleteJar()}
       />
     </div>
   );

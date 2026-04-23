@@ -8,6 +8,7 @@ import { parseAmountInput } from "@/lib/income/money";
 import { formatNaira } from "@/lib/utils/currency";
 import { cn } from "@/lib/utils/cn";
 import { IconAction } from "@/components/ui/IconAction";
+import { ConfirmActionModal } from "@/components/ui/ConfirmActionModal";
 
 interface GroceryItemRowProps {
   row: GroceryItemRecord;
@@ -21,6 +22,7 @@ export function GroceryItemRow({ row, onSaved }: GroceryItemRowProps) {
   const [draftPrice, setDraftPrice] = useState(
     row.estimatedPrice === null ? "" : String(Math.round(row.estimatedPrice)),
   );
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
 
   async function togglePurchased() {
     const res = await fetch(`/api/grocery/items/${row.id}`, {
@@ -71,7 +73,6 @@ export function GroceryItemRow({ row, onSaved }: GroceryItemRowProps) {
   }
 
   async function remove() {
-    if (!confirm("Remove this item?")) return;
     const res = await fetch(`/api/grocery/items/${row.id}`, { method: "DELETE" });
     if (!res.ok) {
       const j = await res.json().catch(() => ({}));
@@ -79,6 +80,7 @@ export function GroceryItemRow({ row, onSaved }: GroceryItemRowProps) {
       return;
     }
     toast.success("Removed");
+    setDeleteModalOpen(false);
     onSaved();
   }
 
@@ -207,7 +209,7 @@ export function GroceryItemRow({ row, onSaved }: GroceryItemRowProps) {
           </button>
           <button
             type="button"
-            onClick={() => void remove()}
+            onClick={() => setDeleteModalOpen(true)}
             className="inline-flex min-h-9 min-w-9 items-center justify-center border border-white/10 text-white/50 hover:text-red-400"
             aria-label="Delete"
           >
@@ -215,6 +217,14 @@ export function GroceryItemRow({ row, onSaved }: GroceryItemRowProps) {
           </button>
         </div>
       )}
+      <ConfirmActionModal
+        open={deleteModalOpen}
+        title="Remove this grocery item?"
+        description="This item will be permanently deleted from the list."
+        confirmLabel="Remove item"
+        onCancel={() => setDeleteModalOpen(false)}
+        onConfirm={() => void remove()}
+      />
     </div>
   );
 }

@@ -18,6 +18,7 @@ import type { InvestmentRecord } from "@/lib/investments/get-investments-page-da
 import { cn } from "@/lib/utils/cn";
 import { daysSinceMaturity, shouldShowProfitConfirmation } from "@/lib/utils/tbills";
 import { IconAction } from "@/components/ui/IconAction";
+import { ConfirmActionModal } from "@/components/ui/ConfirmActionModal";
 
 interface InvestmentRowProps {
   row: InvestmentRecord;
@@ -38,6 +39,7 @@ export function InvestmentRow({ row, onSaved }: InvestmentRowProps) {
     String(Math.round(row.expectedProfit ?? row.actualProfit ?? 0)),
   );
   const [confirmNotes, setConfirmNotes] = useState("");
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
 
   function startEdit() {
     setDraftType(row.type as InvestmentTypeValue);
@@ -90,7 +92,6 @@ export function InvestmentRow({ row, onSaved }: InvestmentRowProps) {
   }
 
   async function remove() {
-    if (!confirm("Remove this investment?")) return;
     const res = await fetch(`/api/investments/${row.id}`, { method: "DELETE" });
     if (!res.ok) {
       const j = await res.json().catch(() => ({}));
@@ -98,6 +99,7 @@ export function InvestmentRow({ row, onSaved }: InvestmentRowProps) {
       return;
     }
     toast.success("Removed");
+    setDeleteModalOpen(false);
     onSaved();
   }
 
@@ -258,7 +260,7 @@ export function InvestmentRow({ row, onSaved }: InvestmentRowProps) {
             </button>
             <button
               type="button"
-              onClick={() => void remove()}
+              onClick={() => setDeleteModalOpen(true)}
               className="inline-flex min-h-9 min-w-9 items-center justify-center border border-white/10 text-white/50 hover:text-red-400"
               aria-label="Delete"
             >
@@ -318,6 +320,14 @@ export function InvestmentRow({ row, onSaved }: InvestmentRowProps) {
           </div>
         </div>
       )}
+      <ConfirmActionModal
+        open={deleteModalOpen}
+        title="Remove this investment?"
+        description="This investment record will be deleted permanently."
+        confirmLabel="Remove investment"
+        onCancel={() => setDeleteModalOpen(false)}
+        onConfirm={() => void remove()}
+      />
     </div>
   );
 }
