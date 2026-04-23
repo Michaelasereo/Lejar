@@ -32,10 +32,15 @@ export function EmailLayout({ previewText, children }: EmailLayoutProps) {
                   <td style={{ verticalAlign: "middle", textAlign: "center" }}>
                     <Img
                       src={`${APP_URL}/Orjar-logo.svg`}
-                      width="128"
-                      height="128"
+                      width="160"
+                      height="62"
                       alt="Orjar"
-                      style={{ display: "inline-block", verticalAlign: "middle" }}
+                      style={{
+                        display: "inline-block",
+                        verticalAlign: "middle",
+                        height: "auto",
+                        maxWidth: "100%",
+                      }}
                     />
                   </td>
                 </tr>
@@ -79,7 +84,7 @@ const container = {
 const header = {
   backgroundColor: "#0a0a0a",
   borderRadius: "12px 12px 0 0",
-  padding: "6px 10px",
+  padding: "14px 10px",
 };
 
 const content = {

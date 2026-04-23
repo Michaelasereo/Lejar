@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils/cn";
 import { amountToPercentage, percentageToAmount } from "@/lib/utils/currency";
 import { PercentageStepper } from "@/components/ui/PercentageStepper";
 import { LoadingButton } from "@/components/ui/LoadingButton";
+import { ReconcileEditModal } from "@/components/income/reconcile-edit-modal";
 
 interface BucketListProps {
   buckets: Array<{
@@ -42,6 +43,23 @@ interface BucketListProps {
   onRefresh: () => void;
 }
 
+interface BucketSaveRequest {
+  id: string;
+  name: string;
+  color: string;
+  allocatedAmount: number;
+  percentage: number;
+  allocationPercentage: number;
+}
+
+interface ReconcileBucketDraft {
+  id: string;
+  name: string;
+  color: string;
+  percentage: number;
+  allocationPercentage: number;
+}
+
 export function BucketList({
   buckets,
   totalIncome,
@@ -55,6 +73,14 @@ export function BucketList({
   const [makeRoomDrafts, setMakeRoomDrafts] = useState<Record<string, number>>(
     Object.fromEntries(buckets.map((bucket) => [bucket.id, Math.round(bucket.percentage)])),
   );
+  const [reconcileOpen, setReconcileOpen] = useState(false);
+  const [reconcileBuckets, setReconcileBuckets] = useState<ReconcileBucketDraft[]>([]);
+  const [reconcileEditedBucketId, setReconcileEditedBucketId] = useState<string | null>(null);
+  const [pendingEditedBucketMeta, setPendingEditedBucketMeta] = useState<{
+    id: string;
+    name: string;
+    color: string;
+  } | null>(null);
 
   const totalBucketPercentage = buckets.reduce((sum, bucket) => sum + bucket.percentage, 0);
   const fullAllocation = totalBucketPercentage >= 99.99;
@@ -189,6 +215,89 @@ export function BucketList({
     onRefresh();
   }
 
+  async function handleBucketSaveRequest(
+    payload: BucketSaveRequest,
+  ): Promise<"saved" | "needs_reconcile" | "error"> {
+    const originalBucket = buckets.find((bucket) => bucket.id === payload.id);
+    if (!originalBucket) {
+      toast.error("Bucket not found");
+      return "error";
+    }
+
+    const projectedBuckets = buckets.map((bucket) => {
+      if (bucket.id !== payload.id) {
+        return {
+          id: bucket.id,
+          name: bucket.name,
+          color: bucket.color,
+          percentage: bucket.percentage,
+          allocationPercentage: bucket.allocationPercentage,
+        };
+      }
+      return {
+        id: bucket.id,
+        name: payload.name,
+        color: payload.color,
+        percentage: payload.percentage,
+        allocationPercentage: payload.allocationPercentage,
+      };
+    });
+    const projectedTotal = projectedBuckets.reduce((sum, bucket) => sum + bucket.percentage, 0);
+    const needsReconcile = Math.abs(projectedTotal - 100) > 0.01;
+
+    if (needsReconcile) {
+      setReconcileBuckets(projectedBuckets);
+      setReconcileEditedBucketId(payload.id);
+      setPendingEditedBucketMeta({
+        id: payload.id,
+        name: payload.name,
+        color: payload.color,
+      });
+      setReconcileOpen(true);
+      return "needs_reconcile";
+    }
+
+    const res = await fetch(`/api/buckets/${payload.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: payload.name,
+        color: payload.color,
+        allocatedAmount: payload.allocatedAmount,
+        percentage: payload.percentage,
+      }),
+    });
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}));
+      toast.error(typeof j.error === "string" ? j.error : "Could not save bucket");
+      return "error";
+    }
+
+    return "saved";
+  }
+
+  async function handleReconcileApplied() {
+    if (pendingEditedBucketMeta) {
+      const res = await fetch(`/api/buckets/${pendingEditedBucketMeta.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: pendingEditedBucketMeta.name,
+          color: pendingEditedBucketMeta.color,
+        }),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(typeof j.error === "string" ? j.error : "Could not save bucket details");
+      }
+    }
+    setReconcileOpen(false);
+    setReconcileEditedBucketId(null);
+    setPendingEditedBucketMeta(null);
+    setReconcileBuckets([]);
+    onRefresh();
+  }
+
   return (
     <section className="border border-white/10 bg-card">
       <div className="border-b border-white/10 px-4 py-3">
@@ -213,6 +322,7 @@ export function BucketList({
               allocations={b.allocations}
               totalIncome={totalIncome}
               onRefresh={onRefresh}
+              onRequestSaveBucket={handleBucketSaveRequest}
             />
           ))
         )}
@@ -364,6 +474,21 @@ export function BucketList({
           ) : null}
         </AnimatePresence>
       </form>
+      {reconcileEditedBucketId ? (
+        <ReconcileEditModal
+          open={reconcileOpen}
+          totalIncome={totalIncome}
+          buckets={reconcileBuckets}
+          editedBucketId={reconcileEditedBucketId}
+          onClose={() => {
+            setReconcileOpen(false);
+            setReconcileEditedBucketId(null);
+            setPendingEditedBucketMeta(null);
+            setReconcileBuckets([]);
+          }}
+          onApplied={handleReconcileApplied}
+        />
+      ) : null}
     </section>
   );
 }

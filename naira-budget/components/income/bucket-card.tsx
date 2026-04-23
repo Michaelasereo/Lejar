@@ -32,6 +32,14 @@ interface BucketCardProps {
   allocations: Allocation[];
   totalIncome: number;
   onRefresh: () => void;
+  onRequestSaveBucket: (payload: {
+    id: string;
+    name: string;
+    color: string;
+    allocatedAmount: number;
+    percentage: number;
+    allocationPercentage: number;
+  }) => Promise<"saved" | "needs_reconcile" | "error">;
 }
 
 function platformLabel(code: string): string {
@@ -217,6 +225,7 @@ export function BucketCard({
   allocations,
   totalIncome,
   onRefresh,
+  onRequestSaveBucket,
 }: BucketCardProps) {
   const [open, setOpen] = useState(false);
   const [editingBucket, setEditingBucket] = useState(false);
@@ -247,23 +256,22 @@ export function BucketCard({
       toast.error("Enter a name and a valid amount.");
       return;
     }
-    const res = await fetch(`/api/buckets/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: draftName.trim(),
-        allocatedAmount: amt,
-        percentage: pct,
-      }),
+    const result = await onRequestSaveBucket({
+      id,
+      name: draftName.trim(),
+      color,
+      allocatedAmount: amt,
+      percentage: pct,
+      allocationPercentage,
     });
-    if (!res.ok) {
-      const j = await res.json().catch(() => ({}));
-      toast.error(typeof j.error === "string" ? j.error : "Could not save bucket");
+    if (result === "error") {
       return;
     }
-    toast.success("Bucket updated");
     setEditingBucket(false);
-    onRefresh();
+    if (result === "saved") {
+      toast.success("Bucket updated");
+      onRefresh();
+    }
   }
 
   async function deleteBucket() {
