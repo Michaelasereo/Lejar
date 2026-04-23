@@ -42,6 +42,14 @@ export default {
           "0%": { opacity: "0", transform: "translateY(0.75rem)" },
           "100%": { opacity: "1", transform: "translateY(0)" },
         },
+        shimmer: {
+          "100%": { transform: "translateX(100%)" },
+        },
+        shake: {
+          "0%, 100%": { transform: "translateX(0)" },
+          "10%, 50%, 90%": { transform: "translateX(-4px)" },
+          "30%, 70%": { transform: "translateX(4px)" },
+        },
         marquee: {
           "0%": { transform: "translateX(0)" },
           "100%": { transform: "translateX(-50%)" },
@@ -49,6 +57,8 @@ export default {
       },
       animation: {
         "fade-in": "fade-in 0.65s ease-out forwards",
+        shimmer: "shimmer 1.6s infinite",
+        shake: "shake 0.4s ease",
         marquee: "marquee 45s linear infinite",
         "marquee-slow": "marquee 90s linear infinite",
       },

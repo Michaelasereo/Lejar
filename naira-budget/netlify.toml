@@ -3,3 +3,10 @@
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
+
+[functions]
+  directory = "netlify/functions"
+
+[[scheduled.functions]]
+  name = "check-maturities"
+  cron = "0 8 * * *"

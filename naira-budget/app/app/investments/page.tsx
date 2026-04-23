@@ -18,6 +18,10 @@ export default async function InvestmentsPage() {
     redirect("/login");
   }
 
-  const data = await getInvestmentsPageData(user.id);
+  const data = await getInvestmentsPageData(
+    user.id,
+    user.email ?? undefined,
+    (user.user_metadata?.full_name as string | undefined) ?? undefined,
+  );
   return <InvestmentsClient data={data} />;
 }

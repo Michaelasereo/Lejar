@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { Eye, EyeOff } from "lucide-react";
@@ -9,8 +10,10 @@ import { createClient } from "@/lib/supabase/client";
 import { loginSchema, type LoginFormValues } from "@/lib/validations/auth";
 import { getAppOrigin } from "@/lib/utils/url";
 import { cn } from "@/lib/utils/cn";
+import { LoadingButton } from "@/components/ui/LoadingButton";
 
 export default function LoginPage() {
+  const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [magicStatus, setMagicStatus] = useState<string | null>(null);
@@ -66,7 +69,7 @@ export default function LoginPage() {
     setMagicStatus("Check your email for a password reset link.");
   }
 
-  async function handleMagicLink() {
+  async function handleOtpCode() {
     setAuthError(null);
     setMagicStatus(null);
     const email = getValues("email")?.trim();
@@ -75,18 +78,18 @@ export default function LoginPage() {
       return;
     }
     const supabase = createClient();
-    const origin = getAppOrigin();
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo: `${origin}/app/dashboard`,
+        shouldCreateUser: false,
       },
     });
     if (error) {
       setAuthError(error.message);
       return;
     }
-    setMagicStatus("Check your email for a login link.");
+    setMagicStatus("Code sent. Enter it to continue.");
+    router.push(`/verify-code?email=${encodeURIComponent(email)}&type=login`);
   }
 
   return (
@@ -187,21 +190,23 @@ export default function LoginPage() {
           ) : null}
         </div>
 
-        <button
+        <LoadingButton
           type="submit"
-          disabled={isSubmitting}
-          className="flex min-h-11 w-full items-center justify-center border border-transparent bg-accent text-sm font-medium text-accent-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+          state={isSubmitting ? "loading" : "idle"}
+          loadingText="Signing in..."
+          size="lg"
+          className="w-full"
         >
-          {isSubmitting ? "Signing in…" : "Sign in"}
-        </button>
+          Sign in
+        </LoadingButton>
       </form>
 
       <button
         type="button"
-        onClick={handleMagicLink}
+        onClick={handleOtpCode}
         className="mt-6 w-full text-center text-sm font-medium text-white/50 underline-offset-4 transition-colors hover:text-white/75 hover:underline"
       >
-        Send me a login link instead
+        Send me a code instead
       </button>
 
       <p className="mt-8 text-center text-sm text-white/50">

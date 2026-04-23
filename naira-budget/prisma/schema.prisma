@@ -16,6 +16,7 @@ model UserSettings {
   id          String   @id @default(cuid())
   userId      String   @unique
   isOnboarded Boolean  @default(false)
+  welcomeEmailSent Boolean @default(false)
   targetSavingsRate Float @default(20)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -130,6 +131,7 @@ model Investment {
   investedAt        DateTime
   maturityDate      DateTime?
   status            InvestmentStatus @default(ACTIVE)
+  maturityEmailSent Boolean          @default(false)
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
 

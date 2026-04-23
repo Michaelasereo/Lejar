@@ -11,6 +11,7 @@ import {
   percentageToAmount,
 } from "@/lib/utils/currency";
 import { cn } from "@/lib/utils/cn";
+import { LoadingButton } from "@/components/ui/LoadingButton";
 
 const STORAGE_KEY = "nb-onboarding-v2";
 const STEPS = 4;
@@ -725,14 +726,16 @@ export function OnboardingWizard() {
               {submitError ? (
                 <p className="mt-4 text-sm text-red-400">{submitError}</p>
               ) : null}
-              <button
+              <LoadingButton
                 type="button"
-                disabled={submitting}
-                onClick={finish}
-                className="mt-8 flex min-h-12 w-full items-center justify-center bg-accent text-sm font-medium text-accent-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+                state={submitting ? "loading" : "idle"}
+                loadingText="Setting up your budget..."
+                size="lg"
+                className="mt-8 w-full"
+                onClick={() => Promise.resolve(finish())}
               >
                 Go to my dashboard
-              </button>
+              </LoadingButton>
             </section>
           </div>
         </div>

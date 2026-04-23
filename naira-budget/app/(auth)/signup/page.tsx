@@ -8,8 +8,8 @@ import { useForm } from "react-hook-form";
 import { Eye, EyeOff } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { signupSchema, type SignupFormValues } from "@/lib/validations/auth";
-import { getAppOrigin } from "@/lib/utils/url";
 import { cn } from "@/lib/utils/cn";
+import { LoadingButton } from "@/components/ui/LoadingButton";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -32,13 +32,11 @@ export default function SignupPage() {
   async function onSubmit(data: SignupFormValues) {
     setSubmitError(null);
     const supabase = createClient();
-    const origin = getAppOrigin();
     const { error } = await supabase.auth.signUp({
       email: data.email,
       password: data.password,
       options: {
         data: { full_name: data.fullName },
-        emailRedirectTo: `${origin}/app/dashboard`,
       },
     });
 
@@ -47,7 +45,7 @@ export default function SignupPage() {
       return;
     }
 
-    router.push(`/verify?email=${encodeURIComponent(data.email)}`);
+    router.push(`/verify-code?email=${encodeURIComponent(data.email)}&type=signup`);
   }
 
   return (
@@ -157,13 +155,15 @@ export default function SignupPage() {
           </p>
         ) : null}
 
-        <button
+        <LoadingButton
           type="submit"
-          disabled={isSubmitting}
-          className="flex min-h-11 w-full items-center justify-center border border-transparent bg-accent text-sm font-medium text-accent-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+          state={isSubmitting ? "loading" : "idle"}
+          loadingText="Creating account..."
+          size="lg"
+          className="w-full"
         >
-          {isSubmitting ? "Creating…" : "Create account"}
-        </button>
+          Create account
+        </LoadingButton>
       </form>
 
       <p className="mt-8 text-center text-sm text-white/50">

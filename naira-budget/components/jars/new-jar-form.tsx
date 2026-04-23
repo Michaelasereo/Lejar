@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { createJarSchema } from "@/lib/validations/jar";
 import type { z } from "zod";
+import { LoadingButton } from "@/components/ui/LoadingButton";
 
 const schema = createJarSchema;
 type FormValues = z.infer<typeof schema>;
@@ -142,13 +143,15 @@ export function NewJarForm() {
         />
       </label>
 
-      <button
+      <LoadingButton
         type="submit"
-        disabled={form.formState.isSubmitting}
-        className="flex min-h-11 w-full items-center justify-center bg-accent px-4 text-sm font-medium text-black hover:opacity-90 disabled:opacity-40"
+        state={form.formState.isSubmitting ? "loading" : "idle"}
+        loadingText="Creating..."
+        successText="Jar created"
+        className="w-full"
       >
-        {form.formState.isSubmitting ? "Saving…" : "Create jar"}
-      </button>
+        Create jar
+      </LoadingButton>
     </form>
   );
 }

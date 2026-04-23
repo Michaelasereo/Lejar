@@ -8,6 +8,7 @@ import { defaultOccurrenceDateForMonth } from "@/lib/expenses/default-occurrence
 import { parseAmountInput } from "@/lib/income/money";
 import { createExpenseSchema } from "@/lib/validations/expense";
 import { cn } from "@/lib/utils/cn";
+import { LoadingButton } from "@/components/ui/LoadingButton";
 
 interface AddExpenseFormProps {
   monthKey: string;
@@ -148,16 +149,17 @@ export function AddExpenseForm({ monthKey, buckets, onCreated }: AddExpenseFormP
           Add buckets under Income & buckets to tag spending against a budget jar.
         </p>
       )}
-      <button
+      <LoadingButton
         type="submit"
-        disabled={submitting || buckets.length === 0}
-        className={cn(
-          "mt-4 min-h-11 border border-accent bg-accent px-6 text-sm font-medium text-accent-foreground",
-          "hover:bg-accent/90 disabled:opacity-50",
-        )}
+        state={submitting ? "loading" : "idle"}
+        loadingText="Logging..."
+        successText="Logged"
+        size="lg"
+        disabled={buckets.length === 0}
+        className={cn("mt-4 w-full sm:w-auto")}
       >
-        {submitting ? "Saving…" : "Add expense"}
-      </button>
+        Add expense
+      </LoadingButton>
     </form>
   );
 }

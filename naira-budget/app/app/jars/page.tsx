@@ -5,9 +5,9 @@ import { Plus } from "lucide-react";
 import { createServerClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { formatNaira } from "@/lib/utils/currency";
-import { cn } from "@/lib/utils/cn";
 import { MigrateRentTrigger } from "@/components/jars/migrate-rent-trigger";
 import { GroupJarCard } from "@/components/jars/GroupJarCard";
+import { JarQuickContributeCard } from "@/components/jars/JarQuickContributeCard";
 
 export const metadata: Metadata = {
   title: "Savings jars — Orjar",
@@ -92,39 +92,18 @@ export default async function JarsPage() {
             const target = toNum(j.targetAmount);
             const pct = target > 0 ? Math.min(100, Math.round((saved / target) * 100)) : 0;
             return (
-              <Link
+              <JarQuickContributeCard
                 key={j.id}
-                href={`/app/jars/${j.id}`}
-                className="block border border-white/10 bg-[#111111] p-5 transition-colors hover:border-white/20"
-              >
-                <div className="flex flex-wrap items-center justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    <span className="text-2xl">{j.emoji}</span>
-                    <div>
-                      <p className="font-medium text-white/90">{j.name}</p>
-                      <p className="mt-1 text-xs text-white/35">
-                        {j._count.contributions} contributions
-                        {j.isPinned ? " · Pinned to Home" : ""}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm tabular-nums text-foreground">
-                      {formatNaira(saved)} / {formatNaira(target)}
-                    </p>
-                    <p className="text-xs text-white/40">{pct}% funded</p>
-                  </div>
-                </div>
-                <div className="mt-4 h-1 w-full bg-white/10">
-                  <div
-                    className={cn(
-                      "h-1 transition-all",
-                      pct >= 100 ? "animate-pulse bg-accent" : "bg-accent",
-                    )}
-                    style={{ width: `${pct}%` }}
-                  />
-                </div>
-              </Link>
+                jar={{
+                  id: j.id,
+                  emoji: j.emoji,
+                  name: j.name,
+                  savedAmount: saved,
+                  targetAmount: target,
+                  contributionsCount: j._count.contributions,
+                  isPinned: j.isPinned,
+                }}
+              />
             );
           })
         )}

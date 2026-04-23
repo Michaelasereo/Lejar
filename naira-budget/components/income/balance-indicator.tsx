@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { formatNaira } from "@/lib/utils/currency";
 import { cn } from "@/lib/utils/cn";
+import { LoadingButton } from "@/components/ui/LoadingButton";
 
 interface BalanceIndicatorProps {
   totalIncome: number;
@@ -60,19 +61,16 @@ export function BalanceIndicator({
                 : `${(Math.round(totalAllocatedPercentage * 100) / 100).toFixed(2)}% — ${formatNaira(remaining)} unallocated`}
           </span>
         </p>
-        <button
+        <LoadingButton
           type="button"
           disabled={!canSave}
-          onClick={() => void onSave()}
-          className={cn(
-            "min-h-11 shrink-0 rounded-none border px-5 py-2.5 text-sm font-medium transition-colors",
-            canSave
-              ? "border-accent bg-accent text-accent-foreground hover:bg-accent/90"
-              : "cursor-not-allowed border-white/10 bg-white/5 text-white/30",
-          )}
+          onClick={() => Promise.resolve(onSave())}
+          loadingText="Saving..."
+          successText="Saved"
+          className={cn("shrink-0", !canSave && "border-white/10 bg-white/5 text-white/30")}
         >
           Save changes
-        </button>
+        </LoadingButton>
       </div>
     </div>
   );

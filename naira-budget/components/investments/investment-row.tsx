@@ -17,6 +17,7 @@ import { formatNaira } from "@/lib/utils/currency";
 import type { InvestmentRecord } from "@/lib/investments/get-investments-page-data";
 import { cn } from "@/lib/utils/cn";
 import { daysSinceMaturity, shouldShowProfitConfirmation } from "@/lib/utils/tbills";
+import { IconAction } from "@/components/ui/IconAction";
 
 interface InvestmentRowProps {
   row: InvestmentRecord;
@@ -37,7 +38,6 @@ export function InvestmentRow({ row, onSaved }: InvestmentRowProps) {
     String(Math.round(row.expectedProfit ?? row.actualProfit ?? 0)),
   );
   const [confirmNotes, setConfirmNotes] = useState("");
-  const [confirmingProfit, setConfirmingProfit] = useState(false);
 
   function startEdit() {
     setDraftType(row.type as InvestmentTypeValue);
@@ -102,27 +102,22 @@ export function InvestmentRow({ row, onSaved }: InvestmentRowProps) {
   }
 
   async function confirmProfit() {
-    setConfirmingProfit(true);
-    try {
-      const profit = parseAmountInput(actualProfit);
-      const res = await fetch(`/api/investments/${row.id}/confirm-profit`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          actualProfit: profit,
-          notes: confirmNotes.trim() || undefined,
-        }),
-      });
-      if (!res.ok) {
-        const j = await res.json().catch(() => ({}));
-        toast.error(typeof j.error === "string" ? j.error : "Could not confirm profit");
-        return;
-      }
-      toast.success(`${formatNaira(profit)} profit confirmed and added to your portfolio`);
-      onSaved();
-    } finally {
-      setConfirmingProfit(false);
+    const profit = parseAmountInput(actualProfit);
+    const res = await fetch(`/api/investments/${row.id}/confirm-profit`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        actualProfit: profit,
+        notes: confirmNotes.trim() || undefined,
+      }),
+    });
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}));
+      toast.error(typeof j.error === "string" ? j.error : "Could not confirm profit");
+      return;
     }
+    toast.success(`${formatNaira(profit)} profit confirmed and added to your portfolio`);
+    onSaved();
   }
 
   return (
@@ -300,14 +295,19 @@ export function InvestmentRow({ row, onSaved }: InvestmentRowProps) {
             </label>
           </div>
           <div className="mt-2 flex gap-2">
-            <button
-              type="button"
-              onClick={() => void confirmProfit()}
-              disabled={confirmingProfit}
-              className="min-h-10 border border-accent bg-accent px-3 text-xs font-medium text-accent-foreground disabled:opacity-60"
-            >
-              {confirmingProfit ? "Confirming..." : "Confirm & add to portfolio"}
-            </button>
+            <IconAction
+              onClick={confirmProfit}
+              icon={
+                <span className="inline-flex min-h-10 items-center gap-1 border border-accent bg-accent px-3 text-xs font-medium text-accent-foreground">
+                  Confirm & add to portfolio
+                </span>
+              }
+              successIcon={
+                <span className="inline-flex min-h-10 items-center gap-1 border border-accent/60 bg-accent/20 px-3 text-xs font-medium text-accent">
+                  Confirmed
+                </span>
+              }
+            />
             <button
               type="button"
               className="min-h-10 border border-white/15 px-3 text-xs text-white/70"

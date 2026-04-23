@@ -7,6 +7,7 @@ import type { GroceryItemRecord } from "@/lib/grocery/get-grocery-page-data";
 import { parseAmountInput } from "@/lib/income/money";
 import { formatNaira } from "@/lib/utils/currency";
 import { cn } from "@/lib/utils/cn";
+import { IconAction } from "@/components/ui/IconAction";
 
 interface GroceryItemRowProps {
   row: GroceryItemRecord;
@@ -89,21 +90,37 @@ export function GroceryItemRow({ row, onSaved }: GroceryItemRowProps) {
       )}
     >
       <div className="flex items-start gap-3">
-        <button
-          type="button"
-          onClick={() => void togglePurchased()}
-          className={cn(
-            "mt-0.5 flex min-h-11 min-w-11 shrink-0 items-center justify-center border text-sm transition-colors",
-            row.isPurchased
-              ? "border-accent bg-accent/20 text-accent"
-              : "border-white/15 bg-background hover:border-white/30",
-          )}
-          aria-checked={row.isPurchased}
-          role="checkbox"
-          aria-label={row.isPurchased ? "Mark not purchased" : "Mark purchased"}
-        >
-          {row.isPurchased ? "✓" : ""}
-        </button>
+        <IconAction
+          onClick={togglePurchased}
+          icon={
+            <span
+              className={cn(
+                "mt-0.5 flex min-h-11 min-w-11 shrink-0 items-center justify-center border text-sm transition-colors",
+                row.isPurchased
+                  ? "border-accent bg-accent/20 text-accent"
+                  : "border-white/15 bg-background hover:border-white/30",
+              )}
+              aria-checked={row.isPurchased}
+              role="checkbox"
+              aria-label={row.isPurchased ? "Mark not purchased" : "Mark purchased"}
+            >
+              {row.isPurchased ? "✓" : ""}
+            </span>
+          }
+          successIcon={
+            <span
+              className={cn(
+                "mt-0.5 flex min-h-11 min-w-11 shrink-0 items-center justify-center border text-sm transition-colors",
+                row.isPurchased
+                  ? "border-white/15 bg-background text-white/70"
+                  : "border-accent bg-accent/20 text-accent",
+              )}
+              aria-hidden
+            >
+              ✓
+            </span>
+          }
+        />
 
         {editing ? (
           <div className="grid min-w-0 flex-1 gap-2 sm:grid-cols-3">

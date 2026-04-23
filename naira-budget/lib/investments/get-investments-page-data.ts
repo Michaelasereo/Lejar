@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { toNumber } from "@/lib/income/money";
+import { safelySendEmail, sendTBillMaturityAlert } from "@/lib/email";
 
 export interface InvestmentRecord {
   id: string;
@@ -31,18 +32,64 @@ export interface InvestmentsPageData {
 
 const MS_DAY = 24 * 60 * 60 * 1000;
 
-export async function getInvestmentsPageData(userId: string): Promise<InvestmentsPageData> {
+export async function getInvestmentsPageData(
+  userId: string,
+  userEmail?: string,
+  userName?: string,
+): Promise<InvestmentsPageData> {
   try {
-    await prisma.investment.updateMany({
+    const maturedCandidates = await prisma.investment.findMany({
       where: {
         userId,
+        type: "T_BILL",
         status: "ACTIVE",
         maturityDate: { lte: new Date() },
       },
-      data: { status: "MATURED" },
+      select: {
+        id: true,
+        label: true,
+        amount: true,
+        expectedProfit: true,
+        maturityDate: true,
+        maturityEmailSent: true,
+      },
     });
+
+    if (maturedCandidates.length > 0) {
+      await prisma.investment.updateMany({
+        where: {
+          id: { in: maturedCandidates.map((item) => item.id) },
+          status: "ACTIVE",
+        },
+        data: { status: "MATURED" },
+      });
+
+      if (userEmail) {
+        await Promise.allSettled(
+          maturedCandidates
+            .filter((item) => item.maturityDate && !item.maturityEmailSent)
+            .map((item) =>
+              safelySendEmail(async () => {
+                await sendTBillMaturityAlert({
+                  toEmail: userEmail,
+                  name: userName ?? "there",
+                  tbillLabel: item.label,
+                  amountInvested: toNumber(item.amount),
+                  expectedReturn: toNumber(item.expectedProfit ?? 0),
+                  maturityDate: item.maturityDate!,
+                  investmentId: item.id,
+                });
+                await prisma.investment.update({
+                  where: { id: item.id },
+                  data: { maturityEmailSent: true },
+                });
+              }),
+            ),
+        );
+      }
+    }
   } catch {
-    // Ignore if migration-backed enum/status transitions are not yet available.
+    // Ignore to keep page resilient if enum/status transitions are not yet available.
   }
 
   const rows = await prisma.investment.findMany({

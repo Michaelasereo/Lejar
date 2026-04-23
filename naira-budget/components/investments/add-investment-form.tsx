@@ -12,6 +12,7 @@ import { createInvestmentSchema } from "@/lib/validations/investment";
 import type { InvestmentTypeValue } from "@/lib/investments/constants";
 import { cn } from "@/lib/utils/cn";
 import { calculateTBillReturn } from "@/lib/utils/tbills";
+import { LoadingButton } from "@/components/ui/LoadingButton";
 
 interface AddInvestmentFormProps {
   onCreated: () => void;
@@ -213,13 +214,15 @@ export function AddInvestmentForm({ onCreated }: AddInvestmentFormProps) {
         {investmentTypeLabel(type)}
         {type === "T_BILL" ? " — include maturity so we can remind you before it lands." : ""}
       </p>
-      <button
+      <LoadingButton
         type="submit"
-        disabled={submitting}
-        className="mt-4 min-h-11 border border-accent bg-accent px-6 text-sm font-medium text-accent-foreground hover:bg-accent/90 disabled:opacity-50"
+        state={submitting ? "loading" : "idle"}
+        loadingText="Saving..."
+        successText="Investment logged"
+        className="mt-4"
       >
-        {submitting ? "Saving…" : "Add investment"}
-      </button>
+        Add investment
+      </LoadingButton>
     </form>
   );
 }
