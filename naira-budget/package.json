@@ -39,6 +39,7 @@
     "recharts": "^3.2.1",
     "resend": "^6.12.2",
     "sonner": "^1.7.4",
+    "styled-jsx": "^5.1.7",
     "tailwind-merge": "^3.5.0",
     "zod": "^4.1.12",
     "zustand": "^5.0.8"
