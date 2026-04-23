@@ -6,10 +6,19 @@ import { prisma } from "@/lib/prisma";
 type Props = { params: { token: string } };
 
 export default async function GroupInviteEntryPage({ params }: Props) {
-  const invite = await prisma.groupJarMember.findUnique({
-    where: { inviteToken: params.token },
-    select: { email: true },
-  });
+  let invite: { email: string } | null = null;
+  try {
+    invite = await prisma.groupJarMember.findUnique({
+      where: { inviteToken: params.token },
+      select: { email: true },
+    });
+  } catch (error) {
+    console.error("[jars/invite entry] failed to lookup invite", {
+      token: params.token.slice(0, 6),
+      error: error instanceof Error ? error.message : error,
+    });
+    redirect("/login");
+  }
 
   if (!invite) {
     redirect("/login");

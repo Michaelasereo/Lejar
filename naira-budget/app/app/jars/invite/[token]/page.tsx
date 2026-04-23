@@ -7,10 +7,19 @@ import { InviteActions } from "@/components/jars/invite-actions";
 type Props = { params: { token: string } };
 
 export default async function GroupJarInvitePage({ params }: Props) {
-  const invite = await prisma.groupJarMember.findUnique({
-    where: { inviteToken: params.token },
-    include: { jar: true },
-  });
+  let invite = null;
+  try {
+    invite = await prisma.groupJarMember.findUnique({
+      where: { inviteToken: params.token },
+      include: { jar: true },
+    });
+  } catch (error) {
+    console.error("[app/jars/invite page] failed to load invite", {
+      token: params.token.slice(0, 6),
+      error: error instanceof Error ? error.message : error,
+    });
+    notFound();
+  }
   if (!invite) notFound();
 
   const supabase = createServerClient();
