@@ -9,6 +9,7 @@ import {
 } from "@/lib/auth/verification-code";
 import { findAuthUserByEmail } from "@/lib/auth/supabase-users";
 import { verifyCodeSchema } from "@/lib/validations/auth-code";
+import { getClientIp, limitByKey } from "@/lib/security/rate-limit";
 
 const MAX_ATTEMPTS = 5;
 
@@ -24,6 +25,35 @@ export async function POST(req: NextRequest) {
 
   const email = normalizeEmail(parsed.data.email);
   const purpose = verificationPurposeFromInput(parsed.data.purpose);
+  const ip = getClientIp(req.headers.get("x-forwarded-for"));
+  const ipLimit = limitByKey({
+    namespace: "auth-verify-code-ip",
+    keyParts: [ip],
+    max: 40,
+    windowMs: 15 * 60 * 1000,
+  });
+  if (!ipLimit.allowed) {
+    console.warn("[security] auth-verify-code ip rate-limit hit", { ip, purpose: parsed.data.purpose });
+    return NextResponse.json(
+      { error: "Too many attempts. Try again in a few minutes." },
+      { status: 429 },
+    );
+  }
+
+  const emailLimit = limitByKey({
+    namespace: "auth-verify-code-email",
+    keyParts: [email, purpose],
+    max: 20,
+    windowMs: 60 * 60 * 1000,
+  });
+  if (!emailLimit.allowed) {
+    console.warn("[security] auth-verify-code email rate-limit hit", { email, purpose: parsed.data.purpose });
+    return NextResponse.json(
+      { error: "Too many attempts. Request a new code later." },
+      { status: 429 },
+    );
+  }
+
   const now = new Date();
 
   const verification = await prisma.verificationCode.findFirst({

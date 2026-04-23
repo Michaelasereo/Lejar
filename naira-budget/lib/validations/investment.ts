@@ -1,4 +1,9 @@
 import { z } from "zod";
+import {
+  isoDateSchema,
+  nonNegativeMoneySchema,
+  positiveMoneySchema,
+} from "@/lib/validations/common";
 
 const investmentTypeEnum = z.enum([
   "T_BILL",
@@ -22,10 +27,10 @@ export const createInvestmentSchema = z
   .object({
     type: investmentTypeEnum,
     label: z.string().min(1).max(120),
-    amount: z.number().positive("Amount must be greater than zero"),
-    investedAt: z.string().min(1, "Pick an investment date"),
+    amount: positiveMoneySchema,
+    investedAt: isoDateSchema,
     maturityDate: z.string().optional().nullable(),
-    expectedProfit: z.number().nonnegative().optional().nullable(),
+    expectedProfit: nonNegativeMoneySchema.optional().nullable(),
     status: statusEnum.optional(),
   })
   .superRefine((data, ctx) => {
@@ -43,14 +48,14 @@ export type CreateInvestmentFormValues = z.infer<typeof createInvestmentSchema>;
 export const updateInvestmentSchema = z.object({
   type: investmentTypeEnum.optional(),
   label: z.string().min(1).max(120).optional(),
-  amount: z.number().positive().finite().optional(),
-  investedAt: z.string().optional(),
+  amount: positiveMoneySchema.optional(),
+  investedAt: isoDateSchema.optional(),
   maturityDate: z.union([z.string(), z.null()]).optional(),
-  expectedProfit: z.number().nonnegative().nullable().optional(),
+  expectedProfit: nonNegativeMoneySchema.nullable().optional(),
   status: statusEnum.optional(),
 });
 
 export const confirmInvestmentProfitSchema = z.object({
-  actualProfit: z.number().nonnegative(),
+  actualProfit: nonNegativeMoneySchema,
   notes: z.string().max(250).optional(),
 });

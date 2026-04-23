@@ -9,6 +9,7 @@ import {
 } from "@/lib/auth/verification-code";
 import { findAuthUserByEmail } from "@/lib/auth/supabase-users";
 import { sendCodeSchema } from "@/lib/validations/auth-code";
+import { getClientIp, limitByKey } from "@/lib/security/rate-limit";
 
 const MIN_RESEND_SECONDS = 30;
 const MAX_PER_HOUR = 5;
@@ -26,6 +27,36 @@ export async function POST(req: NextRequest) {
 
   const email = normalizeEmail(parsed.data.email);
   const purpose = verificationPurposeFromInput(parsed.data.purpose);
+  const ip = getClientIp(req.headers.get("x-forwarded-for"));
+
+  const ipLimit = limitByKey({
+    namespace: "auth-send-code-ip",
+    keyParts: [ip],
+    max: 20,
+    windowMs: 15 * 60 * 1000,
+  });
+  if (!ipLimit.allowed) {
+    console.warn("[security] auth-send-code ip rate-limit hit", { ip, purpose: parsed.data.purpose });
+    return NextResponse.json(
+      { error: "Too many attempts. Try again in a few minutes." },
+      { status: 429 },
+    );
+  }
+
+  const emailLimit = limitByKey({
+    namespace: "auth-send-code-email",
+    keyParts: [email, purpose],
+    max: 6,
+    windowMs: 60 * 60 * 1000,
+  });
+  if (!emailLimit.allowed) {
+    console.warn("[security] auth-send-code email rate-limit hit", { email, purpose: parsed.data.purpose });
+    return NextResponse.json(
+      { error: "Too many attempts. Try again in an hour." },
+      { status: 429 },
+    );
+  }
+
   const now = new Date();
   const recentThreshold = new Date(now.getTime() - MIN_RESEND_SECONDS * 1000);
   const hourlyThreshold = new Date(now.getTime() - 60 * 60 * 1000);

@@ -1,4 +1,10 @@
 import { z } from "zod";
+import {
+  monthKeySchema,
+  nonNegativeMoneySchema,
+  percentageSchema,
+  positiveMoneySchema,
+} from "@/lib/validations/common";
 
 const platform = z.enum([
   "PIGGYVEST",
@@ -29,11 +35,11 @@ const incomeAllocationDirectiveSchema = z.discriminatedUnion("mode", [
 export const createIncomeSchema = z
   .object({
     label: z.string().min(1).max(120),
-    amountMonthly: z.number().positive().finite(),
-    effectiveFrom: z.string().regex(/^\d{4}-\d{2}$/).optional(),
+    amountMonthly: positiveMoneySchema,
+    effectiveFrom: monthKeySchema.optional(),
     incomeTiming: z.enum(["MONTH_ONLY", "RECURRING", "DURATION"]).default("RECURRING"),
     monthOnlyStorageMode: z.enum(["OVERRIDE", "BOUNDED_SOURCE"]).optional(),
-    effectiveTo: z.string().regex(/^\d{4}-\d{2}$/).optional(),
+    effectiveTo: monthKeySchema.optional(),
     allocationDirective: incomeAllocationDirectiveSchema.default({ mode: "ADJUST_EXISTING" }),
   })
   .superRefine((data, ctx) => {
@@ -55,19 +61,16 @@ export const createIncomeSchema = z
 
 export const updateIncomeSchema = z.object({
   label: z.string().min(1).max(120).optional(),
-  amountMonthly: z.number().positive().finite().optional(),
-  effectiveMonth: z
-    .string()
-    .regex(/^\d{4}-\d{2}$/)
-    .optional(),
+  amountMonthly: positiveMoneySchema.optional(),
+  effectiveMonth: monthKeySchema.optional(),
   isBackdate: z.boolean().optional(),
 });
 
 export const createBucketSchema = z.object({
   name: z.string().min(1).max(80),
   color: z.string().regex(/^#[0-9A-Fa-f]{6}$/),
-  allocatedAmount: z.number().nonnegative().finite().optional(),
-  percentage: z.number().min(0).max(100).finite().optional(),
+  allocatedAmount: nonNegativeMoneySchema.optional(),
+  percentage: percentageSchema.optional(),
 }).refine((data) => data.allocatedAmount !== undefined || data.percentage !== undefined, {
   message: "allocatedAmount or percentage is required",
 });
@@ -75,29 +78,29 @@ export const createBucketSchema = z.object({
 export const updateBucketSchema = z.object({
   name: z.string().min(1).max(80).optional(),
   color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
-  allocatedAmount: z.number().nonnegative().finite().optional(),
-  percentage: z.number().min(0).max(100).finite().optional(),
+  allocatedAmount: nonNegativeMoneySchema.optional(),
+  percentage: percentageSchema.optional(),
   sortOrder: z.number().int().min(0).optional(),
 });
 
 export const monthlyIncomeOverrideSchema = z.object({
-  monthKey: z.string().regex(/^\d{4}-\d{2}$/),
-  amount: z.number().nonnegative().finite(),
+  monthKey: monthKeySchema,
+  amount: nonNegativeMoneySchema,
   note: z.string().trim().max(240).optional(),
 });
 
 export const createAllocationSchema = z.object({
   label: z.string().min(1).max(120),
-  amount: z.number().positive().finite().optional(),
-  percentage: z.number().min(0).max(100).finite().optional(),
+  amount: positiveMoneySchema.optional(),
+  percentage: percentageSchema.optional(),
   platform,
   allocationType,
 });
 
 export const updateAllocationSchema = z.object({
   label: z.string().min(1).max(120).optional(),
-  amount: z.number().positive().finite().optional(),
-  percentage: z.number().min(0).max(100).finite().optional(),
+  amount: positiveMoneySchema.optional(),
+  percentage: percentageSchema.optional(),
   platform: platform.optional(),
   allocationType: allocationType.optional(),
 });
