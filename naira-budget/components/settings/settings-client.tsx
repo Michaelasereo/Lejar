@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { LogOut } from "lucide-react";
@@ -47,6 +47,24 @@ export function SettingsClient({ data }: SettingsClientProps) {
       allocationPercentage: number;
     }>
   >([]);
+
+  useEffect(() => {
+    setTargetSavingsRate(data.targetSavingsRate);
+    setBucketDrafts(
+      Object.fromEntries(data.buckets.map((bucket) => [bucket.id, bucket.percentage.toFixed(2)])),
+    );
+    setBucketAmountDrafts(
+      Object.fromEntries(
+        data.buckets.map((bucket) => [
+          bucket.id,
+          String(percentageToAmount(bucket.percentage, totalIncome)),
+        ]),
+      ),
+    );
+    setBucketNameDrafts(
+      Object.fromEntries(data.buckets.map((bucket) => [bucket.id, bucket.name])),
+    );
+  }, [data, totalIncome]);
 
   async function signOut() {
     setSigningOut(true);
