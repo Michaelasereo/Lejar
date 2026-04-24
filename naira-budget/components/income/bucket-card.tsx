@@ -414,6 +414,9 @@ export function BucketCard({
                   Cancel
                 </button>
               </div>
+              <p className="text-xs text-white/45 sm:basis-full">
+                Applies to this month only. Edit in Settings for a permanent change.
+              </p>
             </div>
           ) : (
             <div className="mt-3 flex flex-wrap items-center gap-2">

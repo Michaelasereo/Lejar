@@ -33,6 +33,7 @@ interface BucketListProps {
     }>;
   }>;
   totalIncome: number;
+  monthKey: string;
   addDraft: { name: string; color: string; amount: string; percentage: string };
   onAddDraftChange: (next: {
     name: string;
@@ -63,6 +64,7 @@ interface ReconcileBucketDraft {
 export function BucketList({
   buckets,
   totalIncome,
+  monthKey,
   addDraft,
   onAddDraftChange,
   onRefresh,
@@ -267,19 +269,49 @@ export function BucketList({
       return "needs_reconcile";
     }
 
-    const res = await fetch(`/api/buckets/${payload.id}`, {
-      method: "PATCH",
+    const metadataChanged =
+      payload.name !== originalBucket.name || payload.color !== originalBucket.color;
+    if (metadataChanged) {
+      const detailsRes = await fetch(`/api/buckets/${payload.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: payload.name,
+          color: payload.color,
+        }),
+      });
+      if (!detailsRes.ok) {
+        const j = await detailsRes.json().catch(() => ({}));
+        toast.error(typeof j.error === "string" ? j.error : "Could not save bucket details");
+        return "error";
+      }
+    }
+
+    const updates = buckets.map((bucket) =>
+      bucket.id === payload.id
+        ? {
+            bucketId: bucket.id,
+            percentage: payload.percentage,
+            allocatedAmount: payload.allocatedAmount,
+          }
+        : {
+            bucketId: bucket.id,
+            percentage: bucket.percentage,
+            allocatedAmount: bucket.allocatedAmount,
+          },
+    );
+
+    const overrideRes = await fetch("/api/buckets/monthly-override", {
+      method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        name: payload.name,
-        color: payload.color,
-        allocatedAmount: payload.allocatedAmount,
-        percentage: payload.percentage,
+        monthKey,
+        updates,
       }),
     });
-    if (!res.ok) {
-      const j = await res.json().catch(() => ({}));
-      toast.error(typeof j.error === "string" ? j.error : "Could not save bucket");
+    if (!overrideRes.ok) {
+      const j = await overrideRes.json().catch(() => ({}));
+      toast.error(typeof j.error === "string" ? j.error : "Could not save month override");
       return "error";
     }
 
@@ -493,6 +525,8 @@ export function BucketList({
           totalIncome={totalIncome}
           buckets={reconcileBuckets}
           editedBucketId={reconcileEditedBucketId}
+          scope="monthly"
+          monthKey={monthKey}
           onClose={() => {
             setReconcileOpen(false);
             setReconcileEditedBucketId(null);

@@ -219,6 +219,7 @@ export function IncomeBucketsClient({ initialData }: IncomeBucketsClientProps) {
       <BucketList
         buckets={initialData.buckets}
         totalIncome={totalIncome}
+        monthKey={currentMonth}
         addDraft={addBucket}
         onAddDraftChange={setAddBucket}
         onRefresh={refresh}
